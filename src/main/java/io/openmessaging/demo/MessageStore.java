@@ -2,12 +2,14 @@ package io.openmessaging.demo;
 
 import io.openmessaging.Message;
 
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -16,7 +18,8 @@ import java.util.concurrent.Executors;
 
 public class MessageStore {
 
-    private static final long MAX_FREE_MEMORY = 1024 * 1024 * 500;
+    private static final long MAX_FREE_MEMORY = 1024 * 1024 * 1024L;
+    private static final long MAX_MESS_NUM = 1024 * 1024 * 10;
     private static MessageStore instance ;
 //    public static final String PATH = "E:/Major/Open-Messaging/";
     public static String PATH ;
@@ -27,6 +30,7 @@ public class MessageStore {
     private Map<String, Integer> topicMap = new ConcurrentHashMap<>(100);
     private ExecutorService executorService = Executors.newCachedThreadPool();
     private Map<String, Long> position = new HashMap<>(100);
+    private long messNum;
 
 
     public static MessageStore getInstance(String path) {
@@ -96,42 +100,42 @@ public class MessageStore {
 
 
 
-    public void storeConfig() throws IOException {
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
-        objectOutputStream.writeObject(messAddr);
-        objectOutputStream.writeObject(bucketAddr);
-        objectOutputStream.close();
-
-//        MappedByteBuffer mappedByteBuffer = new RandomAccessFile(CONFIG_NAME, "rw").getChannel()
-//                .map(FileChannel.MapMode.READ_WRITE, 100*BUCKET_SIZE, byteArrayOutputStream.size());
-//        mappedByteBuffer.put(byteArrayOutputStream.toByteArray(), (int) (101*BUCKET_SIZE),byteArrayOutputStream.size());
-
-        long position = 100*BUCKET_SIZE;
-
-//        MappedByteBuffer mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, position, byteArrayOutputStream.size());
+//    public void storeConfig() throws IOException {
+//        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+//        ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+//        objectOutputStream.writeObject(messAddr);
+//        objectOutputStream.writeObject(bucketAddr);
+//        objectOutputStream.close();
 //
-//        mappedByteBuffer.put(byteArrayOutputStream.toByteArray());
-
-        randomAccessFile.seek(position);
-        randomAccessFile.write(byteArrayOutputStream.toByteArray());
-    }
-
-    @SuppressWarnings("unchecked")
-    public void loadConfig() throws IOException, ClassNotFoundException {
-
-        FileChannel fc = new RandomAccessFile(CONFIG_NAME, "r").getChannel();
-        MappedByteBuffer mappedByteBuffer = fc.map(FileChannel.MapMode.READ_ONLY, 0L, fc.size());
-        byte[] buffer = new byte[(int) fc.size()];
-        while (mappedByteBuffer.hasRemaining()) {
-            mappedByteBuffer.get(buffer);
-        }
-        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(buffer);
-        ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
-        messAddr = (Map<String, CopyOnWriteArrayList<Long>>) objectInputStream.readObject();
-        bucketAddr = (Map<String, Long>) objectInputStream.readObject();
-
-    }
+////        MappedByteBuffer mappedByteBuffer = new RandomAccessFile(CONFIG_NAME, "rw").getChannel()
+////                .map(FileChannel.MapMode.READ_WRITE, 100*BUCKET_SIZE, byteArrayOutputStream.size());
+////        mappedByteBuffer.put(byteArrayOutputStream.toByteArray(), (int) (101*BUCKET_SIZE),byteArrayOutputStream.size());
+//
+//        long position = 100*BUCKET_SIZE;
+//
+////        MappedByteBuffer mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, position, byteArrayOutputStream.size());
+////
+////        mappedByteBuffer.put(byteArrayOutputStream.toByteArray());
+//
+//        randomAccessFile.seek(position);
+//        randomAccessFile.write(byteArrayOutputStream.toByteArray());
+//    }
+//
+//    @SuppressWarnings("unchecked")
+//    public void loadConfig() throws IOException, ClassNotFoundException {
+//
+//        FileChannel fc = new RandomAccessFile(CONFIG_NAME, "r").getChannel();
+//        MappedByteBuffer mappedByteBuffer = fc.map(FileChannel.MapMode.READ_ONLY, 0L, fc.size());
+//        byte[] buffer = new byte[(int) fc.size()];
+//        while (mappedByteBuffer.hasRemaining()) {
+//            mappedByteBuffer.get(buffer);
+//        }
+//        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(buffer);
+//        ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
+//        messAddr = (Map<String, CopyOnWriteArrayList<Long>>) objectInputStream.readObject();
+//        bucketAddr = (Map<String, Long>) objectInputStream.readObject();
+//
+//    }
 
 
     public synchronized void putMessage(String bucket, Message message) throws IOException {
@@ -147,6 +151,8 @@ public class MessageStore {
 //        objectOutputStream.writeObject(message);
 //        objectOutputStream.flush();
 
+        messNum++;
+
         if (!resultMap.containsKey(bucket)) {
             resultMap.put(bucket,new CopyOnWriteArrayList<>());
         }
@@ -154,8 +160,14 @@ public class MessageStore {
         CopyOnWriteArrayList<Message> list = resultMap.get(bucket);
         list.add(message);
         resultMap.put(bucket,list);
-        if(Runtime.getRuntime().maxMemory() - Runtime.getRuntime().totalMemory() < MAX_FREE_MEMORY) {
+//        long maxMemory = Runtime.getRuntime().maxMemory();
+//        long totalMemory = Runtime.getRuntime().totalMemory();
+//        if((maxMemory - totalMemory) < MAX_FREE_MEMORY) {
+//            flush();
+//        }
+        if(messNum > MAX_MESS_NUM){
             flush();
+            messNum = 0L;
         }
 
 
@@ -243,111 +255,115 @@ public class MessageStore {
 
     }
 
-    public synchronized List<Message> pullMessage(String bucket,boolean finished) throws IOException, ClassNotFoundException {
-
-        //初始化mess指针，测试用
-         /* if (firstPull) {
-            for (Map.Entry<String, Integer> entry : messIdx.entrySet()) {
-                entry.setValue(0);
-            }
-            firstPull = false;
-        }*/
-
-         //初始化参数
-//         if(firstPull) {
-//             loadConfig();
-//             firstPull = false;
-//         }
-
-        consumerNum ++;
-
-        if(this.bucket==null){
-            this.bucket = bucket;
-        }
-
-        if (!this.bucket.equals(bucket)) {
-            return null;
-        }
-
-        //第一次读取bucket，缓存整个bucket
-        if (resultList.size() == 0) {
-//            FileChannel fc = new RandomAccessFile(PATH + bucket,"r").getChannel();
-//            MappedByteBuffer mappedByteBuffer = fc.map(FileChannel.MapMode.READ_ONLY,0L,fc.size());
-            FileInputStream fileInputStream = new FileInputStream(PATH + bucket);
-            System.out.println(fileInputStream.available());
-            ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
-            System.out.println(objectInputStream.available());
-//            Message message = (Message) objectInputStream.readObject();
-//            while(message != null) {
-//                resultList.add(message);
-//                message = (Message) objectInputStream.readObject();
+//    public synchronized List<Message> pullMessage(String bucket,boolean finished) throws IOException, ClassNotFoundException {
+//
+//        //初始化mess指针，测试用
+//         /* if (firstPull) {
+//            for (Map.Entry<String, Integer> entry : messIdx.entrySet()) {
+//                entry.setValue(0);
 //            }
-            while (fileInputStream.available() > 0) {
-                resultList.add((Message) objectInputStream.readObject());
-            }
-            objectInputStream.close();
-            fileInputStream.close();
-        }
-
-//        if(finished){
-//            bucket = null;
+//            firstPull = false;
+//        }*/
+//
+//         //初始化参数
+////         if(firstPull) {
+////             loadConfig();
+////             firstPull = false;
+////         }
+//
+//        consumerNum ++;
+//
+//        if(this.bucket==null){
+//            this.bucket = bucket;
+//        }
+//
+//        if (!this.bucket.equals(bucket)) {
+//            return null;
+//        }
+//
+//        //第一次读取bucket，缓存整个bucket
+//        if (resultList.size() == 0) {
+////            FileChannel fc = new RandomAccessFile(PATH + bucket,"r").getChannel();
+////            MappedByteBuffer mappedByteBuffer = fc.map(FileChannel.MapMode.READ_ONLY,0L,fc.size());
+//            FileInputStream fileInputStream = new FileInputStream(PATH + bucket);
+//            System.out.println(fileInputStream.available());
+//            ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
+//            System.out.println(objectInputStream.available());
+////            Message message = (Message) objectInputStream.readObject();
+////            while(message != null) {
+////                resultList.add(message);
+////                message = (Message) objectInputStream.readObject();
+////            }
+//            while (fileInputStream.available() > 0) {
+//                resultList.add((Message) objectInputStream.readObject());
+//            }
+//            objectInputStream.close();
+//            fileInputStream.close();
+//        }
+//
+////        if(finished){
+////            bucket = null;
+////            resultList.clear();
+////            notifyAll();
+////            return null;
+////        }
+//
+//        if (finished) {
+//            consumerNum --;
+//            return null;
+//        }
+//
+//        if(consumerNum == 0){
+//            this.bucket = null;
 //            resultList.clear();
-//            notifyAll();
-//            return null;
-//        }
-
-        if (finished) {
-            consumerNum --;
-            return null;
-        }
-
-        if(consumerNum == 0){
-            this.bucket = null;
-            resultList.clear();
-            this.notifyAll();
-            return null;
-        }
-
-        return resultList;
-//        return resultList.get(index);
-
-
-
-
-
-
-//        CopyOnWriteArrayList<Long> messList = messAddr.get(bucket);
-//
-//        if (index == (messList.size() - 1)) {
+//            this.notifyAll();
 //            return null;
 //        }
 //
-//        long size = messList.get(index + 1) - messList.get(index);
-//        long position = messList.get(index);
+//        return resultList;
+////        return resultList.get(index);
 //
-//        MappedByteBuffer mappedByteBuffer = new RandomAccessFile(FILE_NAME, "r").getChannel()
-//                .map(FileChannel.MapMode.READ_ONLY, position, size);
 //
-//        byte[] buffer = new byte[(int) (size)];
-//        while (mappedByteBuffer.hasRemaining()) {
-//            mappedByteBuffer.get(buffer);
-//        }
 //
-//        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(buffer);
 //
-//        ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
 //
-//        return (Message) objectInputStream.readObject();
-
-    }
+//
+////        CopyOnWriteArrayList<Long> messList = messAddr.get(bucket);
+////
+////        if (index == (messList.size() - 1)) {
+////            return null;
+////        }
+////
+////        long size = messList.get(index + 1) - messList.get(index);
+////        long position = messList.get(index);
+////
+////        MappedByteBuffer mappedByteBuffer = new RandomAccessFile(FILE_NAME, "r").getChannel()
+////                .map(FileChannel.MapMode.READ_ONLY, position, size);
+////
+////        byte[] buffer = new byte[(int) (size)];
+////        while (mappedByteBuffer.hasRemaining()) {
+////            mappedByteBuffer.get(buffer);
+////        }
+////
+////        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(buffer);
+////
+////        ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream);
+////
+////        return (Message) objectInputStream.readObject();
+//
+//    }
 
     public void flush() {
+        System.out.println("刷新到硬盘");
         try {
             for (String key : resultMap.keySet()) {
                 RandomAccessFile randomAccessFile = new RandomAccessFile(PATH + key, "rw");
                 ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
                 ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
                 randomAccessFile.seek(position.getOrDefault(key, 0L));
+//                if(resultMap.size() == 0){
+//                    return;
+//                }
                 for (Message m : resultMap.get(key)) {
                     objectOutputStream.writeObject(m);
                 }
@@ -359,6 +375,7 @@ public class MessageStore {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        resultMap.clear();
     }
 
 //    public void setBuckets(List<String> topicList) {
