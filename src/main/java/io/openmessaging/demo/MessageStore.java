@@ -128,7 +128,7 @@ public class MessageStore {
     }
 
 
-    public void putMessage(String bucket, Message message) throws IOException {
+    public synchronized void putMessage(String bucket, Message message) throws IOException {
 
         if (!objectOutputStreamMap.containsKey(bucket)) {
             ObjectOutputStream objectOutputStream = new ObjectOutputStream(new FileOutputStream(PATH+bucket));
@@ -297,28 +297,28 @@ public class MessageStore {
 
     }
 
-    public void setBuckets(List<String> topicList) {
-        for (String topic : topicList){
-            topicMap.put(topic,topicMap.get(topic) == null ? 0 : topicMap.get(topic) + 1);
-        }
-
-
-
-
-        try {
-            FileInputStream fileInputStream = new FileInputStream(PATH + bucket);
-            System.out.println(fileInputStream.available());
-            ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
-            System.out.println(objectInputStream.available());
-            while (fileInputStream.available() > 0) {
-                resultList.add((Message) objectInputStream.readObject());
-            }
-            objectInputStream.close();
-            fileInputStream.close();
-        } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-
-
-    }
+//    public void setBuckets(List<String> topicList) {
+//        for (String topic : topicList){
+//            topicMap.put(topic,topicMap.get(topic) == null ? 0 : topicMap.get(topic) + 1);
+//        }
+//
+//
+//
+//
+//        try {
+//            FileInputStream fileInputStream = new FileInputStream(PATH + bucket);
+//            System.out.println(fileInputStream.available());
+//            ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
+//            System.out.println(objectInputStream.available());
+//            while (fileInputStream.available() > 0) {
+//                resultList.add((Message) objectInputStream.readObject());
+//            }
+//            objectInputStream.close();
+//            fileInputStream.close();
+//        } catch (IOException | ClassNotFoundException e) {
+//            e.printStackTrace();
+//        }
+//
+//
+//    }
 }
