@@ -11,9 +11,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MessageStore {
 
+    private static final long MAX_FREE_MEMORY = 1024 * 1024 * 500;
     private static MessageStore instance ;
 //    public static final String PATH = "E:/Major/Open-Messaging/";
     public static String PATH ;
@@ -22,6 +25,9 @@ public class MessageStore {
     private boolean firstPull = true;
     private int finishedNum;
     private Map<String, Integer> topicMap = new ConcurrentHashMap<>(100);
+    private ExecutorService executorService = Executors.newCachedThreadPool();
+    private Map<String, Long> position = new HashMap<>(100);
+
 
     public static MessageStore getInstance(String path) {
         if(instance == null){
@@ -65,7 +71,7 @@ public class MessageStore {
 
     private Map<String, FileChannel> fileChannelPool = new ConcurrentHashMap<>(100);
 
-    private Map<String, List<Message>> resultMap = new HashMap<>(100);
+    private Map<String, CopyOnWriteArrayList<Message>> resultMap = new ConcurrentHashMap<>(100);
 
     private ArrayList<Message> resultList = new ArrayList<>();
 
@@ -130,14 +136,52 @@ public class MessageStore {
 
     public synchronized void putMessage(String bucket, Message message) throws IOException {
 
-        if (!objectOutputStreamMap.containsKey(bucket)) {
-            ObjectOutputStream objectOutputStream = new ObjectOutputStream(new FileOutputStream(PATH+bucket));
-            objectOutputStreamMap.put(bucket,objectOutputStream);
+//        synchronized (this) {
+//            if (!objectOutputStreamMap.containsKey(bucket)) {
+//                ObjectOutputStream objectOutputStream = new ObjectOutputStream(new FileOutputStream(PATH + bucket));
+//                objectOutputStreamMap.put(bucket, objectOutputStream);
+//            }
+//        }
+//
+//        ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(bucket);
+//        objectOutputStream.writeObject(message);
+//        objectOutputStream.flush();
+
+        if (!resultMap.containsKey(bucket)) {
+            resultMap.put(bucket,new CopyOnWriteArrayList<>());
         }
 
-        ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(bucket);
-        objectOutputStream.writeObject(message);
-        objectOutputStream.flush();
+        CopyOnWriteArrayList<Message> list = resultMap.get(bucket);
+        list.add(message);
+        resultMap.put(bucket,list);
+        if(Runtime.getRuntime().maxMemory() - Runtime.getRuntime().totalMemory() < MAX_FREE_MEMORY) {
+            flush();
+        }
+
+
+//            if(Runtime.getRuntime().maxMemory() - Runtime.getRuntime().totalMemory() < MAX_FREE_MEMORY) {
+//                executorService.execute(() -> {
+//                    try {
+//                        for (String key : resultMap.keySet()) {
+//                            RandomAccessFile randomAccessFile = new RandomAccessFile(PATH + key, "rw");
+//                            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+//                            ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+//                            randomAccessFile.seek(position.getOrDefault(bucket, 0L));
+//                            for (Message m : resultMap.get(bucket)) {
+//                                objectOutputStream.writeObject(m);
+//                            }
+//                            randomAccessFile.write(byteArrayOutputStream.toByteArray());
+//                            position.put(bucket, randomAccessFile.length());
+//                            objectOutputStream.close();
+//                            randomAccessFile.close();
+//                        }
+//                    } catch (IOException e) {
+//                        e.printStackTrace();
+//                    }
+//                    resultMap.clear();
+//                });
+//            }
+
 
 //        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(MESSAGE_SIZE);
 //        ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
@@ -297,6 +341,26 @@ public class MessageStore {
 
     }
 
+    public void flush() {
+        try {
+            for (String key : resultMap.keySet()) {
+                RandomAccessFile randomAccessFile = new RandomAccessFile(PATH + key, "rw");
+                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+                randomAccessFile.seek(position.getOrDefault(key, 0L));
+                for (Message m : resultMap.get(key)) {
+                    objectOutputStream.writeObject(m);
+                }
+                randomAccessFile.write(byteArrayOutputStream.toByteArray());
+                position.put(key, randomAccessFile.length());
+                objectOutputStream.close();
+                randomAccessFile.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 //    public void setBuckets(List<String> topicList) {
 //        for (String topic : topicList){
 //            topicMap.put(topic,topicMap.get(topic) == null ? 0 : topicMap.get(topic) + 1);
@@ -321,4 +385,35 @@ public class MessageStore {
 //
 //
 //    }
+
+
 }
+
+//class CleanCache implements Runnable{
+//    private static CleanCache instance;
+//    private Map<String,CopyOnWriteArrayList<Message>> resultMap;
+//    private Map<String, Long> position = new HashMap<>(100);
+//
+//    public static CleanCache getInstance(Map<String,CopyOnWriteArrayList<Message>> resultMap) {
+//        if(instance == null){
+//            synchronized (CleanCache.class){
+//                if(instance == null){
+//                    instance = new CleanCache(resultMap);
+//                }
+//            }
+//        }
+//        return instance;
+//    }
+//
+//
+//    public CleanCache(Map<String,CopyOnWriteArrayList<Message>> resultMap) {
+//        this.resultMap = resultMap;
+//    }
+//
+//    @Override
+//    public void run() {
+//        for (String bucket : resultMap.keySet()) {
+//            MappedByteBuffer mappedByteBuffer = new RandomAccessFile()
+//        }
+//    }
+

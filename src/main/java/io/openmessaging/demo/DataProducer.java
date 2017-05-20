@@ -14,11 +14,12 @@ public class DataProducer {
         KeyValue properties = new DefaultKeyValue();
         properties.put("STORE_PATH", "E:/Major/Open-Messaging");
         Producer producer = new DefaultProducer(properties);
+        final int QUAN = 1024*10;
 
         for (int i = 0; i < 50; i++) {
             String topic = "TOPIC" + i;
-            List<Message> list = new ArrayList<>(1024);
-            for (int j = 0; j < 1024; j++) {
+            List<Message> list = new ArrayList<>(QUAN);
+            for (int j = 0; j < QUAN; j++) {
                 list.add(producer.createBytesMessageToTopic(topic,(topic+j).getBytes()));
             }
             map.put(topic, list);
@@ -26,8 +27,8 @@ public class DataProducer {
 
         for (int i = 0; i < 50; i++) {
             String queue = "QUEUE" + i;
-            List<Message> list = new ArrayList<>(1024);
-            for (int j = 0; j < 1024; j++) {
+            List<Message> list = new ArrayList<>(QUAN);
+            for (int j = 0; j < QUAN; j++) {
                 list.add(producer.createBytesMessageToQueue(queue,(queue+j).getBytes()));
             }
             map.put(queue, list);

@@ -25,6 +25,7 @@ public class SendTester {
         long start = System.currentTimeMillis();
         //发送, 实际测试时，会用多线程来发送, 每个线程发送自己的Topic和Queue
 
+        System.out.println("测试开始");
         Iterator<Map.Entry<String,List<Message>>> it = data.entrySet().iterator();
         for (int i = 0; i < 10; i++) {
             executorService.execute(() -> {
@@ -46,6 +47,7 @@ public class SendTester {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        new DefaultProducer(properties).flush();
         long end = System.currentTimeMillis();
 
         long T1 = end - start;

@@ -79,4 +79,11 @@ public class DefaultProducer implements Producer {
     @Override public BatchToPartition createBatchToPartition(String partitionName, KeyValue properties) {
         throw new UnsupportedOperationException("Unsupported");
     }
+
+    //用于被kill之前刷新到硬盘
+    @Override
+    public void flush() {
+        messageStore.flush();
+
+    }
 }

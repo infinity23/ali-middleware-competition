@@ -28,6 +28,7 @@ public class PollTester {
         HashMap<String, List<Message>> data = DataProducer.produce();
 
         long startConsumer = System.currentTimeMillis();
+        System.out.println("测试开始");
 
         for (int i = 0; i < 10; i++) {
             int finalI = i;
