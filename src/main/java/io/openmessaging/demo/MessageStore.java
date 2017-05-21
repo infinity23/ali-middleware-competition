@@ -17,7 +17,7 @@ public class MessageStore {
 
     private static final long MAX_FREE_MEMORY = 1024 * 1024 * 1024L;
 //    private static final long MAX_MESS_NUM = 1024 * 1024 * 10;
-    private static final long MAX_MESS_NUM = 1000000;
+    private static final long MAX_MESS_NUM = 100000;
     private static final long SLEEP_TIME = 100;
     private static MessageStore instance;
     //    public static final String PATH = "E:/Major/Open-Messaging/";
@@ -27,10 +27,10 @@ public class MessageStore {
     private boolean firstPull = true;
     private int finishedNum;
     private Map<String, Integer> topicMap = new ConcurrentHashMap<>(100);
-    private ExecutorService executorService = Executors.newCachedThreadPool();
     private Map<String, Long> position = new HashMap<>(100);
     private volatile long messNum;
     private volatile boolean flushing;
+    private Map<String, RandomAccessFile> randomAccessFileMap = new ConcurrentHashMap<>(100);
 
 
     public static MessageStore getInstance(String path) {
@@ -47,7 +47,8 @@ public class MessageStore {
     public MessageStore(String path) {
         PATH = path + "/";
 
-        //缓存清理线程
+//        缓存清理线程
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
         executorService.execute(() -> {
             while (true) {
                 try {
@@ -55,10 +56,8 @@ public class MessageStore {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                if(!flushing && messNum > MAX_MESS_NUM) {
-                    flushing = true;
+                if(messNum > MAX_MESS_NUM) {
                     flush();
-                    flushing = false;
                 }
             }
         });
@@ -87,8 +86,6 @@ public class MessageStore {
 
     private static FileChannel fileChannel;
 
-    private static RandomAccessFile randomAccessFile;
-
     private Map<String, FileChannel> fileChannelPool = new ConcurrentHashMap<>(100);
 
     private Map<String, ConcurrentLinkedQueue<Message>> resultMap = new ConcurrentHashMap<>(100);
@@ -100,6 +97,9 @@ public class MessageStore {
     private int consumerNum;
 
     private Map<String, ObjectOutputStream> objectOutputStreamMap = new ConcurrentHashMap<>(100);
+    private ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(100);
+
+    private Map<String, ByteArrayOutputStream> resultData = new ConcurrentHashMap<>(100);
 
 
 //        try {
@@ -168,15 +168,39 @@ public class MessageStore {
 
         messNum++;
 
-        ConcurrentLinkedQueue<Message> queue = resultMap.get(bucket) == null ? new ConcurrentLinkedQueue<>() : resultMap.get(bucket);
-        boolean success = false;
-        while(!success) {
-            try {
-                success = queue.add(message);
-            } catch (NullPointerException ignored) {
-            }
+//        if(!resultMap.containsKey(bucket)){
+//            resultMap.put(bucket, new ConcurrentLinkedQueue<>());
+//        }
+//
+//        ConcurrentLinkedQueue<Message> queue = resultMap.get(bucket);
+//
+//        boolean success = false;
+//        while(!success) {
+//            try {
+//                success = queue.add(message);
+//            } catch (NullPointerException ignored) {
+//            }
+//        }
+
+        if(!resultData.containsKey(bucket)){
+            resultData.put(bucket, new ByteArrayOutputStream(100));
         }
-        resultMap.put(bucket, queue);
+
+        ByteArrayOutputStream byteArrayOutputStream = resultData.get(bucket);
+
+        if(!objectOutputStreamMap.containsKey(bucket)){
+            objectOutputStreamMap.put(bucket, new ObjectOutputStream(byteArrayOutputStream));
+        }
+
+        ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(bucket);
+
+        objectOutputStream.writeObject(message);
+
+
+
+
+
+
 
 
 
@@ -364,32 +388,60 @@ public class MessageStore {
     public synchronized void flush() {
         System.out.println("刷新到硬盘");
         long start = System.currentTimeMillis();
-        Map<String, ConcurrentLinkedQueue<Message>> copyMap = resultMap;
-        resultMap = new ConcurrentHashMap<>();
+//        Map<String, ConcurrentLinkedQueue<Message>> copyMap = resultMap;
+//        resultMap = new ConcurrentHashMap<>();
+//        messNum = 0;
+//        try {
+//            for (String key : copyMap.keySet()) {
+//                if(!randomAccessFileMap.containsKey(key)){
+//                    randomAccessFileMap.put(key, new RandomAccessFile(PATH + key, "rw"));
+//                }
+//                RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
+//
+//                if(!objectOutputStreamMap.containsKey(key)){
+//                    objectOutputStreamMap.put(key,  new ObjectOutputStream(byteArrayOutputStream));
+//                }
+//                ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(key);
+//                randomAccessFile.seek(position.getOrDefault(key, 0L));
+//
+//                for (Message m : copyMap.get(key)) {
+//                    objectOutputStream.writeObject(m);
+//                }
+//
+//                randomAccessFile.write(byteArrayOutputStream.toByteArray());
+//                position.put(key, randomAccessFile.length());
+//
+//                byteArrayOutputStream.reset();
+////                objectOutputStream.close();
+////                randomAccessFile.close();
+//            }
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//        long end = System.currentTimeMillis();
+//        System.out.println("本次硬盘刷新时间："+ (end - start));
+
+
+        Map<String, ByteArrayOutputStream> copyMap = resultData;
+        resultData = new ConcurrentHashMap<>(100);
         messNum = 0;
         try {
             for (String key : copyMap.keySet()) {
-                RandomAccessFile randomAccessFile = new RandomAccessFile(PATH + key, "rw");
-                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
-                randomAccessFile.seek(position.getOrDefault(key, 0L));
-//                if(resultMap.size() == 0){
-//                    return;
-//                }
-                for (Message m : copyMap.get(key)) {
-                    objectOutputStream.writeObject(m);
+                if(!randomAccessFileMap.containsKey(key)){
+                    randomAccessFileMap.put(key, new RandomAccessFile(PATH + key, "rw"));
                 }
-                randomAccessFile.write(byteArrayOutputStream.toByteArray());
+                RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
+                randomAccessFile.seek(position.getOrDefault(key, 0L));
+                randomAccessFile.write(copyMap.get(key).toByteArray());
                 position.put(key, randomAccessFile.length());
-                objectOutputStream.close();
-                randomAccessFile.close();
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
         long end = System.currentTimeMillis();
         System.out.println("本次硬盘刷新时间："+ (end - start));
-    }
+
+
 
 //    public void setBuckets(List<String> topicList) {
 //        for (String topic : topicList){
@@ -414,7 +466,7 @@ public class MessageStore {
 //        }
 //
 //
-//    }
+    }
 
 
 
