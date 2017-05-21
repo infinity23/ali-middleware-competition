@@ -17,7 +17,7 @@ public class MessageStore {
 
     private static final long MAX_FREE_MEMORY = 1024 * 1024 * 1024L;
 //    private static final long MAX_MESS_NUM = 1024 * 1024 * 10;
-    private static final long MAX_MESS_NUM = 100000;
+    private static final long MAX_MESS_NUM = 1000000;
     private static final long SLEEP_TIME = 100;
     private static MessageStore instance;
     //    public static final String PATH = "E:/Major/Open-Messaging/";
@@ -169,7 +169,13 @@ public class MessageStore {
         messNum++;
 
         ConcurrentLinkedQueue<Message> queue = resultMap.get(bucket) == null ? new ConcurrentLinkedQueue<>() : resultMap.get(bucket);
-        queue.add(message);
+        boolean success = false;
+        while(!success) {
+            try {
+                success = queue.add(message);
+            } catch (NullPointerException ignored) {
+            }
+        }
         resultMap.put(bucket, queue);
 
 
