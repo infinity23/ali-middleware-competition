@@ -4,10 +4,10 @@ import io.openmessaging.KeyValue;
 import io.openmessaging.Message;
 import io.openmessaging.Producer;
 
-import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.*;
 
 public class SendTester {
 
@@ -20,13 +20,13 @@ public class SendTester {
 
         properties.put("STORE_PATH", "E:/Major/Open-Messaging");
 
-        HashMap<String, List<Message>> data = DataProducer.produce();
+        ConcurrentHashMap<String, CopyOnWriteArrayList<Message>> data = DataProducer.produce();
 
         long start = System.currentTimeMillis();
         //发送, 实际测试时，会用多线程来发送, 每个线程发送自己的Topic和Queue
 
         System.out.println("测试开始");
-        Iterator<Map.Entry<String,List<Message>>> it = data.entrySet().iterator();
+        Iterator<Map.Entry<String, CopyOnWriteArrayList<Message>>> it = data.entrySet().iterator();
         for (int i = 0; i < 10; i++) {
             executorService.execute(() -> {
                 Producer producer1 = new DefaultProducer(properties);

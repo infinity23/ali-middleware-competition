@@ -4,21 +4,20 @@ import io.openmessaging.KeyValue;
 import io.openmessaging.Message;
 import io.openmessaging.Producer;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class DataProducer {
-    public static HashMap<String, List<Message>> produce(){
-        HashMap<String, List<Message>> map = new HashMap<>();
+    public static ConcurrentHashMap<String, CopyOnWriteArrayList<Message>> produce(){
+        ConcurrentHashMap<String, CopyOnWriteArrayList<Message>> map = new ConcurrentHashMap<>();
         KeyValue properties = new DefaultKeyValue();
         properties.put("STORE_PATH", "E:/Major/Open-Messaging");
         Producer producer = new DefaultProducer(properties);
-        final int QUAN = 1024*10;
+        final int QUAN = 10000;
 
         for (int i = 0; i < 50; i++) {
             String topic = "TOPIC" + i;
-            List<Message> list = new ArrayList<>(QUAN);
+            CopyOnWriteArrayList<Message> list = new CopyOnWriteArrayList<>();
             for (int j = 0; j < QUAN; j++) {
                 list.add(producer.createBytesMessageToTopic(topic,(topic+j).getBytes()));
             }
@@ -27,7 +26,7 @@ public class DataProducer {
 
         for (int i = 0; i < 50; i++) {
             String queue = "QUEUE" + i;
-            List<Message> list = new ArrayList<>(QUAN);
+            CopyOnWriteArrayList<Message> list = new CopyOnWriteArrayList<>();
             for (int j = 0; j < QUAN; j++) {
                 list.add(producer.createBytesMessageToQueue(queue,(queue+j).getBytes()));
             }

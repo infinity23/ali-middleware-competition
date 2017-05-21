@@ -4,12 +4,8 @@ import io.openmessaging.*;
 import org.junit.Assert;
 
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.ListIterator;
+import java.util.concurrent.*;
 
 public class PollTester {
 
@@ -25,7 +21,7 @@ public class PollTester {
 
         //这个测试程序的测试逻辑与实际评测相似，但注意这里是单线程的，实际测试时会是多线程的，并且发送完之后会Kill进程，再起消费逻辑
         //构造测试数据
-        HashMap<String, List<Message>> data = DataProducer.produce();
+        ConcurrentHashMap<String, CopyOnWriteArrayList<Message>> data = DataProducer.produce();
 
         long startConsumer = System.currentTimeMillis();
         System.out.println("测试开始");
@@ -36,11 +32,11 @@ public class PollTester {
                 PullConsumer consumer = new DefaultPullConsumer(properties);
                 consumer.attachQueue("QUEUE" + finalI, Collections.singletonList("TOPIC" + finalI));
 
-                List<Message> queueList = data.get("QUEUE" + finalI);
-                List<Message> topicList = data.get("TOPIC" + finalI);
+                CopyOnWriteArrayList<Message> queueList = data.get("QUEUE" + finalI);
+                CopyOnWriteArrayList<Message> topicList = data.get("TOPIC" + finalI);
 
-                Iterator<Message> queueIt = queueList.iterator();
-                Iterator<Message> topicIt = topicList.iterator();
+                ListIterator<Message> queueIt = queueList.listIterator();
+                ListIterator<Message> topicIt = topicList.listIterator();
 
                 Message message = consumer.poll();
                 int n = 0;

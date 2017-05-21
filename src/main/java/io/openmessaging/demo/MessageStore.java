@@ -11,18 +11,17 @@ import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 public class MessageStore {
 
     private static final long MAX_FREE_MEMORY = 1024 * 1024 * 1024L;
-    private static final long MAX_MESS_NUM = 1024 * 1024 * 10;
-    private static MessageStore instance ;
-//    public static final String PATH = "E:/Major/Open-Messaging/";
-    public static String PATH ;
+//    private static final long MAX_MESS_NUM = 1024 * 1024 * 10;
+    private static final long MAX_MESS_NUM = 100000;
+    private static final long SLEEP_TIME = 100;
+    private static MessageStore instance;
+    //    public static final String PATH = "E:/Major/Open-Messaging/";
+    public static String PATH;
     public static final String FILE_NAME = "E:/Major/Open-Messaging/mess.dat";
     public static final String CONFIG_NAME = "congfig.dat";
     private boolean firstPull = true;
@@ -30,13 +29,14 @@ public class MessageStore {
     private Map<String, Integer> topicMap = new ConcurrentHashMap<>(100);
     private ExecutorService executorService = Executors.newCachedThreadPool();
     private Map<String, Long> position = new HashMap<>(100);
-    private long messNum;
+    private volatile long messNum;
+    private volatile boolean flushing;
 
 
     public static MessageStore getInstance(String path) {
-        if(instance == null){
-            synchronized (MessageStore.class){
-                if(instance == null){
+        if (instance == null) {
+            synchronized (MessageStore.class) {
+                if (instance == null) {
                     instance = new MessageStore(path);
                 }
             }
@@ -44,8 +44,24 @@ public class MessageStore {
         return instance;
     }
 
-    public MessageStore(String path){
+    public MessageStore(String path) {
         PATH = path + "/";
+
+        //缓存清理线程
+        executorService.execute(() -> {
+            while (true) {
+                try {
+                    TimeUnit.MILLISECONDS.sleep(SLEEP_TIME);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                if(!flushing && messNum > MAX_MESS_NUM) {
+                    flushing = true;
+                    flush();
+                    flushing = false;
+                }
+            }
+        });
     }
 
     //queue或topic大小，10M
@@ -69,13 +85,13 @@ public class MessageStore {
 
     private static MappedByteBuffer mappedByteBuffer;
 
-    private static  FileChannel fileChannel;
+    private static FileChannel fileChannel;
 
     private static RandomAccessFile randomAccessFile;
 
     private Map<String, FileChannel> fileChannelPool = new ConcurrentHashMap<>(100);
 
-    private Map<String, CopyOnWriteArrayList<Message>> resultMap = new ConcurrentHashMap<>(100);
+    private Map<String, ConcurrentLinkedQueue<Message>> resultMap = new ConcurrentHashMap<>(100);
 
     private ArrayList<Message> resultList = new ArrayList<>();
 
@@ -97,7 +113,6 @@ public class MessageStore {
 //        } catch (FileNotFoundException e) {
 //            e.printStackTrace();
 //        }
-
 
 
 //    public void storeConfig() throws IOException {
@@ -138,7 +153,7 @@ public class MessageStore {
 //    }
 
 
-    public synchronized void putMessage(String bucket, Message message) throws IOException {
+    public void putMessage(String bucket, Message message) throws IOException {
 
 //        synchronized (this) {
 //            if (!objectOutputStreamMap.containsKey(bucket)) {
@@ -153,22 +168,10 @@ public class MessageStore {
 
         messNum++;
 
-        if (!resultMap.containsKey(bucket)) {
-            resultMap.put(bucket,new CopyOnWriteArrayList<>());
-        }
+        ConcurrentLinkedQueue<Message> queue = resultMap.get(bucket) == null ? new ConcurrentLinkedQueue<>() : resultMap.get(bucket);
+        queue.add(message);
+        resultMap.put(bucket, queue);
 
-        CopyOnWriteArrayList<Message> list = resultMap.get(bucket);
-        list.add(message);
-        resultMap.put(bucket,list);
-//        long maxMemory = Runtime.getRuntime().maxMemory();
-//        long totalMemory = Runtime.getRuntime().totalMemory();
-//        if((maxMemory - totalMemory) < MAX_FREE_MEMORY) {
-//            flush();
-//        }
-        if(messNum > MAX_MESS_NUM){
-            flush();
-            messNum = 0L;
-        }
 
 
 //            if(Runtime.getRuntime().maxMemory() - Runtime.getRuntime().totalMemory() < MAX_FREE_MEMORY) {
@@ -219,7 +222,6 @@ public class MessageStore {
 
 
 //        fileChannel.force(false);
-
 
 
 //        CopyOnWriteArrayList<Long> messList = messAddr.get(bucket);
@@ -353,10 +355,14 @@ public class MessageStore {
 //
 //    }
 
-    public void flush() {
+    public synchronized void flush() {
         System.out.println("刷新到硬盘");
+        long start = System.currentTimeMillis();
+        Map<String, ConcurrentLinkedQueue<Message>> copyMap = resultMap;
+        resultMap = new ConcurrentHashMap<>();
+        messNum = 0;
         try {
-            for (String key : resultMap.keySet()) {
+            for (String key : copyMap.keySet()) {
                 RandomAccessFile randomAccessFile = new RandomAccessFile(PATH + key, "rw");
                 ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
                 ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
@@ -364,7 +370,7 @@ public class MessageStore {
 //                if(resultMap.size() == 0){
 //                    return;
 //                }
-                for (Message m : resultMap.get(key)) {
+                for (Message m : copyMap.get(key)) {
                     objectOutputStream.writeObject(m);
                 }
                 randomAccessFile.write(byteArrayOutputStream.toByteArray());
@@ -375,7 +381,8 @@ public class MessageStore {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        resultMap.clear();
+        long end = System.currentTimeMillis();
+        System.out.println("本次硬盘刷新时间："+ (end - start));
     }
 
 //    public void setBuckets(List<String> topicList) {
@@ -404,17 +411,34 @@ public class MessageStore {
 //    }
 
 
+
+//
+//    private void cleanCache(){
+//        if (!flushing && messNum > MAX_MESS_NUM) {
+//            synchronized (this) {
+//                if(!flushing) {
+//                    flushing = true;
+//                    executorService.execute(() -> {
+//                        flush();
+//                        flushing = false;
+//                    });
+//                }
+//            }
+//        }
+//    }
+
+
 }
 
-//class CleanCache implements Runnable{
+//class CleanCache implements Runnable {
 //    private static CleanCache instance;
-//    private Map<String,CopyOnWriteArrayList<Message>> resultMap;
+//    private Map<String, CopyOnWriteArrayList<Message>> resultMap;
 //    private Map<String, Long> position = new HashMap<>(100);
 //
-//    public static CleanCache getInstance(Map<String,CopyOnWriteArrayList<Message>> resultMap) {
-//        if(instance == null){
-//            synchronized (CleanCache.class){
-//                if(instance == null){
+//    public static CleanCache getInstance(Map<String, CopyOnWriteArrayList<Message>> resultMap) {
+//        if (instance == null) {
+//            synchronized (CleanCache.class) {
+//                if (instance == null) {
 //                    instance = new CleanCache(resultMap);
 //                }
 //            }
@@ -423,14 +447,13 @@ public class MessageStore {
 //    }
 //
 //
-//    public CleanCache(Map<String,CopyOnWriteArrayList<Message>> resultMap) {
+//    public CleanCache(Map<String, CopyOnWriteArrayList<Message>> resultMap) {
 //        this.resultMap = resultMap;
 //    }
 //
 //    @Override
 //    public void run() {
-//        for (String bucket : resultMap.keySet()) {
-//            MappedByteBuffer mappedByteBuffer = new RandomAccessFile()
-//        }
+//
 //    }
+//}
 
