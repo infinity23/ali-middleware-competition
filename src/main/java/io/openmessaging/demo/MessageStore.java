@@ -168,33 +168,33 @@ public class MessageStore {
 
         messNum++;
 
-//        if(!resultMap.containsKey(bucket)){
-//            resultMap.put(bucket, new ConcurrentLinkedQueue<>());
-//        }
-//
-//        ConcurrentLinkedQueue<Message> queue = resultMap.get(bucket);
-//
-//        boolean success = false;
-//        while(!success) {
-//            try {
-//                success = queue.add(message);
-//            } catch (NullPointerException ignored) {
-//            }
-//        }
-
-        if(!resultData.containsKey(bucket)){
-            resultData.put(bucket, new ByteArrayOutputStream(100));
+        if(!resultMap.containsKey(bucket)){
+            resultMap.put(bucket, new ConcurrentLinkedQueue<>());
         }
 
-        ByteArrayOutputStream byteArrayOutputStream = resultData.get(bucket);
+        ConcurrentLinkedQueue<Message> queue = resultMap.get(bucket);
 
-        if(!objectOutputStreamMap.containsKey(bucket)){
-            objectOutputStreamMap.put(bucket, new ObjectOutputStream(byteArrayOutputStream));
+        boolean success = false;
+        while(!success) {
+            try {
+                success = queue.add(message);
+            } catch (NullPointerException ignored) {
+            }
         }
 
-        ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(bucket);
-
-        objectOutputStream.writeObject(message);
+//        if(!resultData.containsKey(bucket)){
+//            resultData.put(bucket, new ByteArrayOutputStream(100));
+//        }
+//
+//        ByteArrayOutputStream byteArrayOutputStream = resultData.get(bucket);
+//
+//        if(!objectOutputStreamMap.containsKey(bucket)){
+//            objectOutputStreamMap.put(bucket, new ObjectOutputStream(byteArrayOutputStream));
+//        }
+//
+//        ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(bucket);
+//
+//        objectOutputStream.writeObject(message);
 
 
 
@@ -388,42 +388,8 @@ public class MessageStore {
     public synchronized void flush() {
         System.out.println("刷新到硬盘");
         long start = System.currentTimeMillis();
-//        Map<String, ConcurrentLinkedQueue<Message>> copyMap = resultMap;
-//        resultMap = new ConcurrentHashMap<>();
-//        messNum = 0;
-//        try {
-//            for (String key : copyMap.keySet()) {
-//                if(!randomAccessFileMap.containsKey(key)){
-//                    randomAccessFileMap.put(key, new RandomAccessFile(PATH + key, "rw"));
-//                }
-//                RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
-//
-//                if(!objectOutputStreamMap.containsKey(key)){
-//                    objectOutputStreamMap.put(key,  new ObjectOutputStream(byteArrayOutputStream));
-//                }
-//                ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(key);
-//                randomAccessFile.seek(position.getOrDefault(key, 0L));
-//
-//                for (Message m : copyMap.get(key)) {
-//                    objectOutputStream.writeObject(m);
-//                }
-//
-//                randomAccessFile.write(byteArrayOutputStream.toByteArray());
-//                position.put(key, randomAccessFile.length());
-//
-//                byteArrayOutputStream.reset();
-////                objectOutputStream.close();
-////                randomAccessFile.close();
-//            }
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//        long end = System.currentTimeMillis();
-//        System.out.println("本次硬盘刷新时间："+ (end - start));
-
-
-        Map<String, ByteArrayOutputStream> copyMap = resultData;
-        resultData = new ConcurrentHashMap<>(100);
+        Map<String, ConcurrentLinkedQueue<Message>> copyMap = resultMap;
+        resultMap = new ConcurrentHashMap<>();
         messNum = 0;
         try {
             for (String key : copyMap.keySet()) {
@@ -431,9 +397,23 @@ public class MessageStore {
                     randomAccessFileMap.put(key, new RandomAccessFile(PATH + key, "rw"));
                 }
                 RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
+
+                if(!objectOutputStreamMap.containsKey(key)){
+                    objectOutputStreamMap.put(key,  new ObjectOutputStream(byteArrayOutputStream));
+                }
+                ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(key);
                 randomAccessFile.seek(position.getOrDefault(key, 0L));
-                randomAccessFile.write(copyMap.get(key).toByteArray());
+
+                for (Message m : copyMap.get(key)) {
+                    objectOutputStream.writeObject(m);
+                }
+
+                randomAccessFile.write(byteArrayOutputStream.toByteArray());
                 position.put(key, randomAccessFile.length());
+
+                byteArrayOutputStream.reset();
+//                objectOutputStream.close();
+//                randomAccessFile.close();
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -442,6 +422,25 @@ public class MessageStore {
         System.out.println("本次硬盘刷新时间："+ (end - start));
 
 
+//        Map<String, ByteArrayOutputStream> copyMap = resultData;
+//        resultData = new ConcurrentHashMap<>(100);
+//        messNum = 0;
+//        try {
+//            for (String key : copyMap.keySet()) {
+//                if(!randomAccessFileMap.containsKey(key)){
+//                    randomAccessFileMap.put(key, new RandomAccessFile(PATH + key, "rw"));
+//                }
+//                RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
+//                randomAccessFile.seek(position.getOrDefault(key, 0L));
+//                randomAccessFile.write(copyMap.get(key).toByteArray());
+//                position.put(key, randomAccessFile.length());
+//            }
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//        long end = System.currentTimeMillis();
+//        System.out.println("本次硬盘刷新时间："+ (end - start));
+//    }
 
 //    public void setBuckets(List<String> topicList) {
 //        for (String topic : topicList){
