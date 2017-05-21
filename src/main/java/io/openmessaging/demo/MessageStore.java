@@ -17,7 +17,7 @@ public class MessageStore {
 
     private static final long MAX_FREE_MEMORY = 1024 * 1024 * 1024L;
 //    private static final long MAX_MESS_NUM = 1024 * 1024 * 10;
-    private static final long MAX_MESS_NUM = 10000;
+    private static final long MAX_MESS_NUM = 100000;
     private static final long SLEEP_TIME = 100;
     private static MessageStore instance;
     //    public static final String PATH = "E:/Major/Open-Messaging/";
@@ -174,13 +174,15 @@ public class MessageStore {
 
         ConcurrentLinkedQueue<Message> queue = resultMap.get(bucket);
 
-        boolean success = false;
-        while(!success) {
-            try {
-                success = queue.add(message);
-            } catch (NullPointerException ignored) {
-            }
-        }
+        queue.add(message);
+
+//        boolean success = false;
+//        while(!success) {
+//            try {
+//                success = queue.add(message);
+//            } catch (NullPointerException ignored) {
+//            }
+//        }
 
 //        if(!resultData.containsKey(bucket)){
 //            resultData.put(bucket, new ByteArrayOutputStream(100));
@@ -389,7 +391,7 @@ public class MessageStore {
         System.out.println("刷新到硬盘");
         long start = System.currentTimeMillis();
         Map<String, ConcurrentLinkedQueue<Message>> copyMap = resultMap;
-        resultMap = new ConcurrentHashMap<>();
+//        resultMap = new ConcurrentHashMap<>();
         messNum = 0;
         try {
             for (String key : copyMap.keySet()) {
@@ -404,8 +406,12 @@ public class MessageStore {
                 ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(key);
                 randomAccessFile.seek(position.getOrDefault(key, 0L));
 
-                for (Message m : copyMap.get(key)) {
-                    objectOutputStream.writeObject(m);
+//                for (Message m : copyMap.get(key)) {
+//                    objectOutputStream.writeObject(m);
+//                }
+
+                while(!copyMap.get(key).isEmpty()){
+                    objectOutputStream.writeObject(copyMap.get(key).poll());
                 }
 
                 randomAccessFile.write(byteArrayOutputStream.toByteArray());

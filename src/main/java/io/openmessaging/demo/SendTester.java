@@ -27,6 +27,7 @@ public class SendTester {
         System.out.println("测试开始");
         Iterator<Map.Entry<String, ConcurrentLinkedQueue<Message>>> it = data.entrySet().iterator();
         for (int i = 0; i < 10; i++) {
+            int finalI = i;
             executorService.execute(() -> {
                 Producer producer1 = new DefaultProducer(properties);
                 for (int j = 0; j < 10; j++) {
@@ -34,8 +35,8 @@ public class SendTester {
                     for (Message message : queue) {
                         producer1.send(message);
                     }
-                    System.out.println("完成百分比：" + j);
                 }
+                System.out.println("线程完成： "+ finalI);
             });
         }
         executorService.shutdown();
