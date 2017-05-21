@@ -17,7 +17,7 @@ public class MessageStore {
 
     private static final long MAX_FREE_MEMORY = 1024 * 1024 * 1024L;
 //    private static final long MAX_MESS_NUM = 1024 * 1024 * 10;
-    private static final long MAX_MESS_NUM = 100000;
+    private static final long MAX_MESS_NUM = 10000;
     private static final long SLEEP_TIME = 100;
     private static MessageStore instance;
     //    public static final String PATH = "E:/Major/Open-Messaging/";
