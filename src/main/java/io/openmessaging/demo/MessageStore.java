@@ -93,7 +93,7 @@ public class MessageStore {
     private Map<String, ObjectOutputStream> objectOutputStreamMap = new ConcurrentHashMap<>(100);
 
 //    private Map<String, ByteArrayOutputStream> resultData = new ConcurrentHashMap<>(100);
-    private Map<String, ConcurrentLinkedQueue<Message>> resultMap = new ConcurrentHashMap<>(100);
+    private Map<String, ConcurrentLinkedQueue<byte[]>> resultMap = new ConcurrentHashMap<>(100);
 //    private Map<String, MappedByteBuffer> mappedByteBufferMap = new ConcurrentHashMap<>(100);
 
 
@@ -185,13 +185,13 @@ public class MessageStore {
             resultMap.put(bucket, new ConcurrentLinkedQueue<>());
         }
 
-        ConcurrentLinkedQueue<Message> queue = resultMap.get(bucket);
+        ConcurrentLinkedQueue<byte[]> queue = resultMap.get(bucket);
 
-        queue.add(message);
+        queue.add(((DefaultBytesMessage)message).getBytes());
 
-        while (messNum > 1000000) {
+        while (messNum > 500000) {
             synchronized (this) {
-                while (messNum > 1000000) {
+                while (messNum > 500000) {
                     flush();
                 }
             }
@@ -447,10 +447,8 @@ public class MessageStore {
 //                    ByteBuffer byteBuffer = ByteBuffer.allocate(1024*1024*100);
 
                     while (!resultMap.get(key).isEmpty()) {
-                        Message message = resultMap.get(key).poll();
-                        byteArrayOutputStream.write(((DefaultBytesMessage)message).getBytes());
+                        byteArrayOutputStream.write(resultMap.get(key).poll());
                         messNum--;
-                        message = null;
                     }
 
                     randomAccessFile.write(byteArrayOutputStream.toByteArray());
