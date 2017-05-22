@@ -8,10 +8,11 @@ import java.io.ObjectOutputStream;
 import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MessageStore {
 
@@ -26,7 +27,7 @@ public class MessageStore {
     public static final String CONFIG_NAME = "congfig.dat";
     private boolean firstPull = true;
     private int finishedNum;
-    private Map<String, Integer> topicMap = new ConcurrentHashMap<>(100);
+//    private Map<String, Integer> topicMap = new ConcurrentHashMap<>(100);
     private Map<String, Long> position = new HashMap<>(100);
     private volatile long messNum;
     private volatile boolean flushing;
@@ -60,64 +61,47 @@ public class MessageStore {
 //            }
 //        }
 //        for (int i = 0; i < 5; i++) {
-            executorService.execute(() -> {
-                while (messNum == 0) {
-                    while(messNum > 0) {
-                        flush();
-//                        synchronized (this) {
-//                            this.notifyAll();
-//                        }
-//                        try {
-//                            TimeUnit.MILLISECONDS.sleep(SLEEP_TIME);
-//                        } catch (InterruptedException e) {
-//                            e.printStackTrace();
-//                        }
-                    }
-                }
-            });
+//            executorService.execute(() -> {
+//                while (messNum == 0) {
+//                    while(messNum > 0) {
+//                        flush();
+////                        synchronized (this) {
+////                            this.notifyAll();
+////                        }
+////                        try {
+////                            TimeUnit.MILLISECONDS.sleep(SLEEP_TIME);
+////                        } catch (InterruptedException e) {
+////                            e.printStackTrace();
+////                        }
+//                    }
+//                }
+//            });
 //        }
 
 
 //        executorService.execute(this::flush);
+
     }
 
-    //queue或topic大小，10M
-    private static final long BUCKET_SIZE = 1024 * 1024 * 10;
 
-    //message最大长度，256k
-    private static final int MESSAGE_SIZE = 256 * 1024;
-
-    //bucket指针
-    private int bucketIdx;
-
-    //message地址，指向结尾,从1开始记录
-    private Map<String, CopyOnWriteArrayList<Long>> messAddr = new ConcurrentHashMap<>();
-
-    //记录message指针
-    private Map<String, Integer> messIdx = new HashMap<>(100);
-
-
-    //queue或topics的文件起始位置
-    private Map<String, Long> bucketAddr = new ConcurrentHashMap<>(100);
-
-    private static MappedByteBuffer mappedByteBuffer;
-
-    private static FileChannel fileChannel;
-
-    private Map<String, FileChannel> fileChannelPool = new ConcurrentHashMap<>(100);
-
-    private Map<String, ConcurrentLinkedQueue<Message>> resultMap = new ConcurrentHashMap<>(100);
-
-    private ArrayList<Message> resultList = new ArrayList<>();
-
-    private String bucket;
-
-    private int consumerNum;
 
     private Map<String, ObjectOutputStream> objectOutputStreamMap = new ConcurrentHashMap<>(100);
-    private ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
     private Map<String, ByteArrayOutputStream> resultData = new ConcurrentHashMap<>(100);
+    private Map<String, MappedByteBuffer> mappedByteBufferMap = new ConcurrentHashMap<>(100);
+
+
+    private ThreadLocal<ByteArrayOutputStream> byteArrayOutputStream = ThreadLocal.withInitial(() -> new ByteArrayOutputStream(100));
+    private ThreadLocal<ObjectOutputStream> objectOutputStream = ThreadLocal.withInitial(() -> {
+        try {
+            return new ObjectOutputStream(byteArrayOutputStream.get());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    });
+
+
 
 
 //        try {
@@ -171,7 +155,7 @@ public class MessageStore {
 //    }
 
 
-    public void putMessage(String bucket, Message message) throws IOException {
+    public void putMessage(String bucket, Message message) {
 
 //        synchronized (this) {
 //            if (!objectOutputStreamMap.containsKey(bucket)) {
@@ -184,83 +168,67 @@ public class MessageStore {
 //        objectOutputStream.writeObject(message);
 //        objectOutputStream.flush();
 
-        messNum++;
 
-        if(!resultMap.containsKey(bucket)){
-            resultMap.put(bucket, new ConcurrentLinkedQueue<>());
+        //直接缓存版本
+//        messNum++;
+//
+//        if(!resultMap.containsKey(bucket)){
+//            resultMap.put(bucket, new ConcurrentLinkedQueue<>());
+//        }
+//
+//        ConcurrentLinkedQueue<Message> queue = resultMap.get(bucket);
+//
+//        queue.add(message);
+//
+//        while(messNum > 100000){
+//            synchronized (this) {
+//                while (messNum > 100000){
+//                    flush();
+//                }
+//            }
+//        }
+
+        //先转换为数据，缓存数据版本
+
+        messNum++;
+        try {
+//            if(!resultData.containsKey(bucket)){
+//                resultData.put(bucket, new ByteArrayOutputStream());
+//            }
+//
+//            ByteArrayOutputStream byteArrayOutputStream = resultData.get(bucket);
+
+//            if(!objectOutputStreamMap.containsKey(bucket)){
+//                objectOutputStreamMap.put(bucket, new ObjectOutputStream(byteArrayOutputStream));
+//            }
+
+//            ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(bucket);
+
+
+            objectOutputStream.get().writeObject(message);
+
+            if(!mappedByteBufferMap.containsKey(bucket)){
+                MappedByteBuffer mappedByteBuffer = new RandomAccessFile(PATH+bucket,"rw").getChannel().map(FileChannel.MapMode.READ_WRITE,0L,1024*1024*100);
+                mappedByteBufferMap.put(bucket,mappedByteBuffer);
+            }
+            MappedByteBuffer mappedByteBuffer = mappedByteBufferMap.get(bucket);
+
+            mappedByteBuffer.put(byteArrayOutputStream.get().toByteArray());
+
+            byteArrayOutputStream.get().reset();
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
-        ConcurrentLinkedQueue<Message> queue = resultMap.get(bucket);
-
-        queue.add(message);
-
-//        while(messNum > 100000){
-//            try {
-//                synchronized (this) {
-//                    while(messNum > 100000) {
-//                        this.wait();
-//                    }
+//        while (messNum > 100000) {
+//            synchronized (this) {
+//                while (messNum > 100000) {
+//                    flush();
 //                }
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
 //            }
 //        }
-
-
-
-
-//        boolean success = false;
-//        while(!success) {
-//            try {
-//                success = queue.add(message);
-//            } catch (NullPointerException ignored) {
-//            }
-//        }
-
-//        if(!resultData.containsKey(bucket)){
-//            resultData.put(bucket, new ByteArrayOutputStream(100));
-//        }
-//
-//        ByteArrayOutputStream byteArrayOutputStream = resultData.get(bucket);
-//
-//        if(!objectOutputStreamMap.containsKey(bucket)){
-//            objectOutputStreamMap.put(bucket, new ObjectOutputStream(byteArrayOutputStream));
-//        }
-//
-//        ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(bucket);
-//
-//        objectOutputStream.writeObject(message);
-
-
-
-
-
-
-
-
-
-//            if(Runtime.getRuntime().maxMemory() - Runtime.getRuntime().totalMemory() < MAX_FREE_MEMORY) {
-//                executorService.execute(() -> {
-//                    try {
-//                        for (String key : resultMap.keySet()) {
-//                            RandomAccessFile randomAccessFile = new RandomAccessFile(PATH + key, "rw");
-//                            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-//                            ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
-//                            randomAccessFile.seek(position.getOrDefault(bucket, 0L));
-//                            for (Message m : resultMap.get(bucket)) {
-//                                objectOutputStream.writeObject(m);
-//                            }
-//                            randomAccessFile.write(byteArrayOutputStream.toByteArray());
-//                            position.put(bucket, randomAccessFile.length());
-//                            objectOutputStream.close();
-//                            randomAccessFile.close();
-//                        }
-//                    } catch (IOException e) {
-//                        e.printStackTrace();
-//                    }
-//                    resultMap.clear();
-//                });
-//            }
 
 
 //        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(MESSAGE_SIZE);
@@ -421,52 +389,57 @@ public class MessageStore {
 //    }
 
     public synchronized void flush() {
-        if(messNum == 0){
-            return;
-        }
-        System.out.println("刷新到硬盘");
-        long start = System.currentTimeMillis();
-//        resultMap = new ConcurrentHashMap<>();
-        try {
-            while(messNum > 0) {
-                for (String key : resultMap.keySet()) {
-                    if (!randomAccessFileMap.containsKey(key)) {
-                        randomAccessFileMap.put(key, new RandomAccessFile(PATH + key, "rw"));
-                    }
-                    RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
 
-                    if (!objectOutputStreamMap.containsKey(key)) {
-                        objectOutputStreamMap.put(key, new ObjectOutputStream(byteArrayOutputStream));
-                    }
-                    ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(key);
-                    randomAccessFile.seek(position.getOrDefault(key, 0L));
 
-//                for (Message m : copyMap.get(key)) {
-//                    objectOutputStream.writeObject(m);
+        //对应直接缓存版本
+//        if(messNum == 0){
+//            return;
+//        }
+//        System.out.println("刷新到硬盘");
+//        long start = System.currentTimeMillis();
+//        try {
+//            while(messNum > 0) {
+//                for (String key : resultMap.keySet()) {
+//                    if (!randomAccessFileMap.containsKey(key)) {
+//                        randomAccessFileMap.put(key, new RandomAccessFile(PATH + key, "rw"));
+//                    }
+//                    RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
+//
+//                    if (!objectOutputStreamMap.containsKey(key)) {
+//                        objectOutputStreamMap.put(key, new ObjectOutputStream(byteArrayOutputStream));
+//                    }
+//                    ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(key);
+//                    randomAccessFile.seek(position.getOrDefault(key, 0L));
+//
+////                for (Message m : copyMap.get(key)) {
+////                    objectOutputStream.writeObject(m);
+////                }
+//
+//                    while (!resultMap.get(key).isEmpty()) {
+//                        Message message = resultMap.get(key).poll();
+//                        objectOutputStream.writeObject(message);
+//                        messNum--;
+//                    }
+//
+//                    objectOutputStream.flush();
+//                    randomAccessFile.write(byteArrayOutputStream.toByteArray());
+//                    position.put(key, randomAccessFile.length());
+//
+//                    byteArrayOutputStream.reset();
+////                objectOutputStream.close();
+////                randomAccessFile.close();
 //                }
-
-                    while (!resultMap.get(key).isEmpty()) {
-                        Message message = resultMap.get(key).poll();
-                        objectOutputStream.writeObject(message);
-                        messNum--;
-                    }
-
-                    objectOutputStream.flush();
-                    randomAccessFile.write(byteArrayOutputStream.toByteArray());
-                    position.put(key, randomAccessFile.length());
-
-                    byteArrayOutputStream.reset();
-//                objectOutputStream.close();
-//                randomAccessFile.close();
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        long end = System.currentTimeMillis();
-        System.out.println("本次硬盘刷新时间："+ (end - start));
+//            }
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//        long end = System.currentTimeMillis();
+//        System.out.println("本次硬盘刷新时间："+ (end - start));
 
 
+        //对应缓存数据版本
+//        System.out.println("刷新到硬盘");
+//        long start = System.currentTimeMillis();
 //        Map<String, ByteArrayOutputStream> copyMap = resultData;
 //        resultData = new ConcurrentHashMap<>(100);
 //        messNum = 0;
@@ -483,9 +456,13 @@ public class MessageStore {
 //        } catch (IOException e) {
 //            e.printStackTrace();
 //        }
+//        copyMap = null;
 //        long end = System.currentTimeMillis();
 //        System.out.println("本次硬盘刷新时间："+ (end - start));
 //    }
+
+
+    }
 
 //    public void setBuckets(List<String> topicList) {
 //        for (String topic : topicList){
@@ -510,7 +487,6 @@ public class MessageStore {
 //        }
 //
 //
-    }
 
 
 
