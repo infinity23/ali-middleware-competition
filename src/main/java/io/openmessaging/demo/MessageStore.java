@@ -60,10 +60,15 @@ public class MessageStore {
 //            }
 //        }
 //        for (int i = 0; i < 5; i++) {
-            executorService.execute(() -> {
-                while (messNum == 0) {
-                    while(messNum > 0) {
-                        flush();
+//            executorService.execute(() -> {
+//                while (messNum == 0) {
+//                    while(messNum > 0) {
+//                        try {
+//                            TimeUnit.MILLISECONDS.sleep(SLEEP_TIME);
+//                        } catch (InterruptedException e) {
+//                            e.printStackTrace();
+//                        }
+//                        flush();
 //                        synchronized (this) {
 //                            this.notifyAll();
 //                        }
@@ -72,9 +77,9 @@ public class MessageStore {
 //                        } catch (InterruptedException e) {
 //                            e.printStackTrace();
 //                        }
-                    }
-                }
-            });
+//                    }
+//                }
+//            });
 //        }
 
 
@@ -194,17 +199,13 @@ public class MessageStore {
 
         queue.add(message);
 
-//        while(messNum > 100000){
-//            try {
-//                synchronized (this) {
-//                    while(messNum > 100000) {
-//                        this.wait();
-//                    }
-//                }
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            }
-//        }
+        while(messNum > 1000000){
+            synchronized (this){
+                while(messNum > 1000000) {
+                    flush();
+                }
+            }
+        }
 
 
 
@@ -428,7 +429,6 @@ public class MessageStore {
         long start = System.currentTimeMillis();
 //        resultMap = new ConcurrentHashMap<>();
         try {
-            while(messNum > 0) {
                 for (String key : resultMap.keySet()) {
                     if (!randomAccessFileMap.containsKey(key)) {
                         randomAccessFileMap.put(key, new RandomAccessFile(PATH + key, "rw"));
@@ -460,7 +460,6 @@ public class MessageStore {
 //                objectOutputStream.close();
 //                randomAccessFile.close();
                 }
-            }
         } catch (IOException e) {
             e.printStackTrace();
         }
