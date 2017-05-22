@@ -36,6 +36,7 @@ public class MessageStore {
     private ExecutorService executorService = Executors.newSingleThreadExecutor();
 
     public static MessageStore getInstance(String path) {
+
         if (instance == null) {
             synchronized (MessageStore.class) {
                 if (instance == null) {
@@ -192,7 +193,7 @@ public class MessageStore {
 
         messNum++;
 
-        if(messNum > 1000000){
+        if(messNum > 100000){
             flush();
         }
 
