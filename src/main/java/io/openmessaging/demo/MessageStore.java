@@ -29,6 +29,7 @@ public class MessageStore {
     //    private Map<String, Integer> topicMap = new ConcurrentHashMap<>(100);
     private Map<String, Long> position = new HashMap<>(100);
     private volatile long messNum;
+    private volatile long totalNum;
     private volatile boolean flushing;
     private Map<String, RandomAccessFile> randomAccessFileMap = new ConcurrentHashMap<>(100);
 
@@ -165,7 +166,7 @@ public class MessageStore {
 //    }
 
 
-    public void putMessage(String bucket, Message message) {
+    public synchronized void putMessage(String bucket, Message message) {
 
 //        synchronized (this) {
 //            if (!objectOutputStreamMap.containsKey(bucket)) {
@@ -180,7 +181,6 @@ public class MessageStore {
 
 
         //直接缓存版本
-        messNum++;
 
         if (!resultMap.containsKey(bucket)) {
             resultMap.put(bucket, new ConcurrentLinkedQueue<>());
@@ -190,13 +190,19 @@ public class MessageStore {
 
         queue.add(((DefaultBytesMessage)message).getBytes());
 
-        while (messNum > 100000) {
-            synchronized (this) {
-                while (messNum > 100000) {
-                    flush();
-                }
-            }
+        messNum++;
+
+        if(messNum > 1000000){
+            flush();
         }
+
+//        while (messNum > 1000000) {
+//            synchronized (this) {
+//                while (messNum > 1000000) {
+//                    flush();
+//                }
+//            }
+//        }
 
         //先转换为数据，缓存数据版本
 
@@ -414,6 +420,7 @@ public class MessageStore {
             return;
         }
         System.out.println("刷新到硬盘");
+        totalNum += messNum;
         long start = System.currentTimeMillis();
         try {
                 for (String key : resultMap.keySet()) {
@@ -449,7 +456,6 @@ public class MessageStore {
 
                     while (!resultMap.get(key).isEmpty()) {
                         byteArrayOutputStream.write(resultMap.get(key).poll());
-                        messNum--;
                     }
 
                     randomAccessFile.write(byteArrayOutputStream.toByteArray());
@@ -463,8 +469,10 @@ public class MessageStore {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        messNum = 0;
         long end = System.currentTimeMillis();
         System.out.println("本次硬盘刷新时间：" + (end - start));
+        System.out.println("发送数目：" + totalNum);
 //        System.out.println("WriteObjectTime ：" + (writeObjectTime));
     }
 }

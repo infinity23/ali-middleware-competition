@@ -46,6 +46,8 @@ public class SendTester {
             e.printStackTrace();
         }
 
+        MessageStore.getInstance(null).flush();
+
         long end = System.currentTimeMillis();
 
         long T1 = end - start;
