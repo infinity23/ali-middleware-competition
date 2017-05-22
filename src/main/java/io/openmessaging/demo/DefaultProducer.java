@@ -122,6 +122,7 @@ public class DefaultProducer implements Producer {
     //用于被kill之前刷新到硬盘
     @Override
     public void flush() {
+        messageStore.flush();
 //        System.out.println("刷新到硬盘");
 //        long start = System.currentTimeMillis();
 //            try {

@@ -22,7 +22,6 @@ public class SendTester {
         ConcurrentHashMap<String, ConcurrentLinkedQueue<Message>> data = DataProducer.produce();
 
         long start = System.currentTimeMillis();
-        //发送, 实际测试时，会用多线程来发送, 每个线程发送自己的Topic和Queue
 
         System.out.println("测试开始");
         Iterator<Map.Entry<String, ConcurrentLinkedQueue<Message>>> it = data.entrySet().iterator();
@@ -47,6 +46,7 @@ public class SendTester {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
         long end = System.currentTimeMillis();
 
         long T1 = end - start;
