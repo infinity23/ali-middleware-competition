@@ -33,6 +33,7 @@ public class MessageStore {
     private Map<String, RandomAccessFile> randomAccessFileMap = new ConcurrentHashMap<>(100);
 
     private ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private int flush;
 
     public static MessageStore getInstance(String path) {
         if (instance == null) {
@@ -414,17 +415,19 @@ public class MessageStore {
         long start = System.currentTimeMillis();
         try {
                 for (String key : resultMap.keySet()) {
-                    if (!randomAccessFileMap.containsKey(key)) {
-                        randomAccessFileMap.put(key, new RandomAccessFile(PATH + key, "rw"));
-                    }
-                    RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
+//                    if (!randomAccessFileMap.containsKey(key)) {
+//                        randomAccessFileMap.put(key, new RandomAccessFile(PATH + key, "rw"));
+//                    }
+//                    RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
 
-                    if (!objectOutputStreamMap.containsKey(key)) {
-                        objectOutputStreamMap.put(key, new ObjectOutputStream(byteArrayOutputStream));
-                    }
-                    ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(key);
+                    RandomAccessFile randomAccessFile = new RandomAccessFile(PATH+key+flush,"rw");
 
-                    randomAccessFile.skipBytes(Math.toIntExact(position.getOrDefault(key, 0L)));
+//                    if (!objectOutputStreamMap.containsKey(key)) {
+//                        objectOutputStreamMap.put(key, new ObjectOutputStream(byteArrayOutputStream));
+//                    }
+//                    ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(key);
+
+//                    randomAccessFile.skipBytes(Math.toIntExact(position.getOrDefault(key, 0L)));
 
 //                for (Message m : copyMap.get(key)) {
 //                    localObjectOutputStream.writeObject(m);
@@ -438,10 +441,12 @@ public class MessageStore {
                     }
 
                     objectOutputStream.flush();
+
                     randomAccessFile.write(byteArrayOutputStream.toByteArray());
                     position.put(key, randomAccessFile.length());
 
                     byteArrayOutputStream.reset();
+
 //                localObjectOutputStream.close();
 //                randomAccessFile.close();
             }
@@ -450,6 +455,7 @@ public class MessageStore {
         }
         long end = System.currentTimeMillis();
         System.out.println("本次硬盘刷新时间：" + (end - start));
+        flush++;
     }
 }
 

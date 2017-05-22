@@ -35,7 +35,6 @@ public class SendTester {
                         producer1.send(message);
                     }
                 }
-                producer1.flush();
                 System.out.println("线程完成： "+ finalI);
             });
         }
