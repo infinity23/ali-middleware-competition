@@ -33,7 +33,6 @@ public class MessageStore {
     private Map<String, RandomAccessFile> randomAccessFileMap = new ConcurrentHashMap<>(100);
 
     private ExecutorService executorService = Executors.newSingleThreadExecutor();
-    private int flush;
 
     public static MessageStore getInstance(String path) {
         if (instance == null) {
@@ -406,6 +405,8 @@ public class MessageStore {
 
     public synchronized void flush() {
 
+        long writeObjectTime = 0;
+
 
         //对应直接缓存版本
         if (messNum == 0) {
@@ -415,38 +416,48 @@ public class MessageStore {
         long start = System.currentTimeMillis();
         try {
                 for (String key : resultMap.keySet()) {
-//                    if (!randomAccessFileMap.containsKey(key)) {
-//                        randomAccessFileMap.put(key, new RandomAccessFile(PATH + key, "rw"));
-//                    }
-//                    RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
-
-                    RandomAccessFile randomAccessFile = new RandomAccessFile(PATH+key+flush,"rw");
+                    if (!randomAccessFileMap.containsKey(key)) {
+                        randomAccessFileMap.put(key, new RandomAccessFile(PATH + key, "rw"));
+                    }
+                    RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
 
 //                    if (!objectOutputStreamMap.containsKey(key)) {
 //                        objectOutputStreamMap.put(key, new ObjectOutputStream(byteArrayOutputStream));
 //                    }
 //                    ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(key);
 
-//                    randomAccessFile.skipBytes(Math.toIntExact(position.getOrDefault(key, 0L)));
+                    randomAccessFile.skipBytes(Math.toIntExact(position.getOrDefault(key, 0L)));
 
 //                for (Message m : copyMap.get(key)) {
 //                    localObjectOutputStream.writeObject(m);
 //                }
 
+//                    long writeObjectStart = System.currentTimeMillis();
+//                    while (!resultMap.get(key).isEmpty()) {
+//                        Message message = resultMap.get(key).poll();
+//                        objectOutputStream.writeObject(message);
+//                        messNum--;
+//                        message = null;
+//                    }
+//                    objectOutputStream.flush();
+//                    long writeObjectEnd = System.currentTimeMillis();
+
+//                    writeObjectTime += writeObjectEnd - writeObjectStart;
+
+//                    ByteBuffer byteBuffer = ByteBuffer.allocate(1024*1024*100);
+
                     while (!resultMap.get(key).isEmpty()) {
                         Message message = resultMap.get(key).poll();
-                        objectOutputStream.writeObject(message);
+                        byteArrayOutputStream.write(((DefaultBytesMessage)message).getBytes());
                         messNum--;
                         message = null;
                     }
 
-                    objectOutputStream.flush();
-
                     randomAccessFile.write(byteArrayOutputStream.toByteArray());
+
                     position.put(key, randomAccessFile.length());
 
                     byteArrayOutputStream.reset();
-
 //                localObjectOutputStream.close();
 //                randomAccessFile.close();
             }
@@ -455,7 +466,7 @@ public class MessageStore {
         }
         long end = System.currentTimeMillis();
         System.out.println("本次硬盘刷新时间：" + (end - start));
-        flush++;
+//        System.out.println("WriteObjectTime ：" + (writeObjectTime));
     }
 }
 

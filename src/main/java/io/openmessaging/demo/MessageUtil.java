@@ -8,6 +8,9 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 
 public class MessageUtil {
+
+
+
     public static byte[] write(Message message){
         BytesMessage bytesMessage = (BytesMessage) message;
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(100);
@@ -73,6 +76,8 @@ public class MessageUtil {
         s = s0 | s1 | s2 | s3;
         return s;
     }
+
+
 }
 
 

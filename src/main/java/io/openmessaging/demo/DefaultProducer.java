@@ -2,6 +2,10 @@ package io.openmessaging.demo;
 
 import io.openmessaging.*;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+
 public class DefaultProducer implements Producer {
 //    private static final long SLEEP_TIME = 10;
     private MessageFactory messageFactory = new DefaultMessageFactory();
@@ -14,7 +18,8 @@ public class DefaultProducer implements Producer {
 //    private static ExecutorService executorService = Executors.newCachedThreadPool();
 
     private KeyValue properties;
-//    private ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+    private ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(100);
+    private ObjectOutputStream objectOutputStream;
 
     private int messNum;
 
@@ -30,19 +35,46 @@ public class DefaultProducer implements Producer {
 //            }
 //            flush();
 //        });
-
+        try {
+            objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         messageStore = MessageStore.getInstance(properties.getString("STORE_PATH"));
     }
 
 
     @Override
     public BytesMessage createBytesMessageToTopic(String topic, byte[] body) {
-        return messageFactory.createBytesMessageToTopic(topic, body);
+        DefaultBytesMessage bytesMessage = (DefaultBytesMessage) messageFactory.createBytesMessageToTopic(topic, body);
+        try {
+            objectOutputStream.writeObject(bytesMessage);
+            objectOutputStream.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        bytesMessage.setBytes(byteArrayOutputStream.toByteArray());
+        byteArrayOutputStream.reset();
+
+        bytesMessage.setBody(null);
+        return bytesMessage;
     }
 
     @Override
     public BytesMessage createBytesMessageToQueue(String queue, byte[] body) {
-        return messageFactory.createBytesMessageToQueue(queue, body);
+
+        DefaultBytesMessage bytesMessage = (DefaultBytesMessage) messageFactory.createBytesMessageToQueue(queue, body);
+        try {
+            objectOutputStream.writeObject(bytesMessage);
+            objectOutputStream.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        bytesMessage.setBytes(byteArrayOutputStream.toByteArray());
+        byteArrayOutputStream.reset();
+
+        bytesMessage.setBody(null);
+        return bytesMessage;
     }
 
     @Override
