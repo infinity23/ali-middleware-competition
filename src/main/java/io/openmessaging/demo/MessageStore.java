@@ -18,7 +18,7 @@ public class MessageStore {
     private static final long MAX_FREE_MEMORY = 1024 * 1024 * 1024L;
 //    private static final long MAX_MESS_NUM = 1024 * 1024 * 10;
     private static final long MAX_MESS_NUM = 50000;
-    private static final long SLEEP_TIME = 100;
+    private static final long SLEEP_TIME = 10;
     private static MessageStore instance;
     //    public static final String PATH = "E:/Major/Open-Messaging/";
     public static String PATH;
@@ -59,17 +59,24 @@ public class MessageStore {
 //                flush();
 //            }
 //        }
-        executorService.execute(() -> {
-            while (messNum == 0) {
-                try {
-                    TimeUnit.MILLISECONDS.sleep(SLEEP_TIME);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+//        for (int i = 0; i < 5; i++) {
+            executorService.execute(() -> {
+                while (messNum == 0) {
+                    while(messNum > 0) {
+                        flush();
+//                        synchronized (this) {
+//                            this.notifyAll();
+//                        }
+//                        try {
+//                            TimeUnit.MILLISECONDS.sleep(SLEEP_TIME);
+//                        } catch (InterruptedException e) {
+//                            e.printStackTrace();
+//                        }
+                    }
                 }
-                if(messNum > 0)
-                    flush();
-            }
-        });
+            });
+//        }
+
 
 //        executorService.execute(this::flush);
     }
@@ -108,7 +115,7 @@ public class MessageStore {
     private int consumerNum;
 
     private Map<String, ObjectOutputStream> objectOutputStreamMap = new ConcurrentHashMap<>(100);
-    private ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(100);
+    private ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
     private Map<String, ByteArrayOutputStream> resultData = new ConcurrentHashMap<>(100);
 
@@ -186,6 +193,18 @@ public class MessageStore {
         ConcurrentLinkedQueue<Message> queue = resultMap.get(bucket);
 
         queue.add(message);
+
+//        while(messNum > 100000){
+//            try {
+//                synchronized (this) {
+//                    while(messNum > 100000) {
+//                        this.wait();
+//                    }
+//                }
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+//        }
 
 
 
@@ -416,10 +435,11 @@ public class MessageStore {
                     }
                     RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
 
-                    if (!objectOutputStreamMap.containsKey(key)) {
-                        objectOutputStreamMap.put(key, new ObjectOutputStream(byteArrayOutputStream));
-                    }
-                    ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(key);
+//                    if (!objectOutputStreamMap.containsKey(key)) {
+//                        objectOutputStreamMap.put(key, new ObjectOutputStream(byteArrayOutputStream));
+//                    }
+//                    ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(key);
+                    ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
                     randomAccessFile.seek(position.getOrDefault(key, 0L));
 
 //                for (Message m : copyMap.get(key)) {
@@ -427,14 +447,16 @@ public class MessageStore {
 //                }
 
                     while (!resultMap.get(key).isEmpty()) {
-                        objectOutputStream.writeObject(resultMap.get(key).poll());
+                        Message message = resultMap.get(key).poll();
+                        objectOutputStream.writeObject(message);
                         messNum--;
                     }
 
+                    objectOutputStream.close();
                     randomAccessFile.write(byteArrayOutputStream.toByteArray());
                     position.put(key, randomAccessFile.length());
 
-                    byteArrayOutputStream.reset();
+                    byteArrayOutputStream = new ByteArrayOutputStream(100);
 //                objectOutputStream.close();
 //                randomAccessFile.close();
                 }
