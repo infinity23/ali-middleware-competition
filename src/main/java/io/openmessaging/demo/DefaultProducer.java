@@ -22,6 +22,7 @@ public class DefaultProducer implements Producer {
     private ObjectOutputStream objectOutputStream;
 
     private int messNum;
+    private boolean first = true;
 
     public DefaultProducer(KeyValue properties) {
         this.properties = properties;
@@ -46,7 +47,10 @@ public class DefaultProducer implements Producer {
 
     @Override
     public BytesMessage createBytesMessageToTopic(String topic, byte[] body) {
-        System.out.println("调用createBytesMessageToTopic");
+        if(first) {
+            System.out.println("调用createBytesMessageToTopic");
+            first = false;
+        }
         DefaultBytesMessage bytesMessage = (DefaultBytesMessage) messageFactory.createBytesMessageToTopic(topic, body);
         try {
             objectOutputStream.writeObject(bytesMessage);
@@ -95,7 +99,10 @@ public class DefaultProducer implements Producer {
 
     @Override
     public void send(Message message) {
-        System.out.println("开始发送");
+        if(first) {
+            System.out.println("开始发送");
+            first = false;
+        }
         if (message == null) throw new ClientOMSException("Message should not be null");
         String topic = message.headers().getString(MessageHeader.TOPIC);
         String queue = message.headers().getString(MessageHeader.QUEUE);
