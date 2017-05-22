@@ -60,15 +60,10 @@ public class MessageStore {
 //            }
 //        }
 //        for (int i = 0; i < 5; i++) {
-//            executorService.execute(() -> {
-//                while (messNum == 0) {
-//                    while(messNum > 0) {
-//                        try {
-//                            TimeUnit.MILLISECONDS.sleep(SLEEP_TIME);
-//                        } catch (InterruptedException e) {
-//                            e.printStackTrace();
-//                        }
-//                        flush();
+            executorService.execute(() -> {
+                while (messNum == 0) {
+                    while(messNum > 0) {
+                        flush();
 //                        synchronized (this) {
 //                            this.notifyAll();
 //                        }
@@ -77,9 +72,9 @@ public class MessageStore {
 //                        } catch (InterruptedException e) {
 //                            e.printStackTrace();
 //                        }
-//                    }
-//                }
-//            });
+                    }
+                }
+            });
 //        }
 
 
@@ -199,13 +194,17 @@ public class MessageStore {
 
         queue.add(message);
 
-        while(messNum > 1000000){
-            synchronized (this){
-                while(messNum > 1000000) {
-                    flush();
-                }
-            }
-        }
+//        while(messNum > 100000){
+//            try {
+//                synchronized (this) {
+//                    while(messNum > 100000) {
+//                        this.wait();
+//                    }
+//                }
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+//        }
 
 
 
@@ -429,17 +428,17 @@ public class MessageStore {
         long start = System.currentTimeMillis();
 //        resultMap = new ConcurrentHashMap<>();
         try {
+            while(messNum > 0) {
                 for (String key : resultMap.keySet()) {
                     if (!randomAccessFileMap.containsKey(key)) {
                         randomAccessFileMap.put(key, new RandomAccessFile(PATH + key, "rw"));
                     }
                     RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
 
-//                    if (!objectOutputStreamMap.containsKey(key)) {
-//                        objectOutputStreamMap.put(key, new ObjectOutputStream(byteArrayOutputStream));
-//                    }
-//                    ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(key);
-                    ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+                    if (!objectOutputStreamMap.containsKey(key)) {
+                        objectOutputStreamMap.put(key, new ObjectOutputStream(byteArrayOutputStream));
+                    }
+                    ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(key);
                     randomAccessFile.seek(position.getOrDefault(key, 0L));
 
 //                for (Message m : copyMap.get(key)) {
@@ -452,14 +451,15 @@ public class MessageStore {
                         messNum--;
                     }
 
-                    objectOutputStream.close();
+                    objectOutputStream.flush();
                     randomAccessFile.write(byteArrayOutputStream.toByteArray());
                     position.put(key, randomAccessFile.length());
 
-                    byteArrayOutputStream = new ByteArrayOutputStream(100);
+                    byteArrayOutputStream.reset();
 //                objectOutputStream.close();
 //                randomAccessFile.close();
                 }
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }

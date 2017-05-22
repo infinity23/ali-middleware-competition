@@ -36,6 +36,7 @@ public class SendTester {
                         producer1.send(message);
                     }
                 }
+                producer1.flush();
                 System.out.println("线程完成： "+ finalI);
             });
         }
@@ -46,7 +47,6 @@ public class SendTester {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        new DefaultProducer(properties).flush();
         long end = System.currentTimeMillis();
 
         long T1 = end - start;
