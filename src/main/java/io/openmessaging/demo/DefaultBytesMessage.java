@@ -4,39 +4,13 @@ import io.openmessaging.BytesMessage;
 import io.openmessaging.KeyValue;
 import io.openmessaging.Message;
 
-import java.io.Serializable;
+import java.io.*;
 
-public class DefaultBytesMessage implements BytesMessage,Serializable{
+public class DefaultBytesMessage implements BytesMessage,Externalizable{
 
     private KeyValue headers = new DefaultKeyValue();
     private KeyValue properties;
     private byte[] body;
-
-    private byte[] bytes;
-
-    public KeyValue getHeaders() {
-        return headers;
-    }
-
-    public void setHeaders(KeyValue headers) {
-        this.headers = headers;
-    }
-
-    public KeyValue getProperties() {
-        return properties;
-    }
-
-    public void setProperties(KeyValue properties) {
-        this.properties = properties;
-    }
-
-    public byte[] getBytes() {
-        return bytes;
-    }
-
-    public void setBytes(byte[] bytes) {
-        this.bytes = bytes;
-    }
 
     public DefaultBytesMessage(byte[] body) {
         this.body = body;
@@ -100,5 +74,19 @@ public class DefaultBytesMessage implements BytesMessage,Serializable{
         if (properties == null) properties = new DefaultKeyValue();
         properties.put(key, value);
         return this;
+    }
+
+    @Override
+    public void writeExternal(ObjectOutput out) throws IOException {
+        out.writeObject(headers);
+        out.writeObject(properties);
+        out.write(body);
+    }
+
+    @Override
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+        headers = (KeyValue) in.readObject();
+        properties = (KeyValue) in.readObject();
+        in.read(body);
     }
 }

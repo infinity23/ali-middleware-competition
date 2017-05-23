@@ -13,7 +13,7 @@ public class DataProducer {
         KeyValue properties = new DefaultKeyValue();
         properties.put("STORE_PATH", "E:/Major/Open-Messaging");
         Producer producer = new DefaultProducer(properties);
-        final int QUAN = 50000;
+        final int QUAN = 100000;
 
         for (int i = 0; i < 50; i++) {
             String topic = "TOPIC" + i;

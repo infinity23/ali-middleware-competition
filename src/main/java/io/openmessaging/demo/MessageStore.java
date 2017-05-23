@@ -96,7 +96,7 @@ public class MessageStore {
 
 //    private Map<String, ByteArrayOutputStream> resultData = new ConcurrentHashMap<>(100);
 
-    private Map<String, ConcurrentLinkedQueue<byte[]>> resultMap = new ConcurrentHashMap<>(100);
+    private Map<String, ConcurrentLinkedQueue<Message>> resultMap = new ConcurrentHashMap<>(100);
 //    private Map<String, MappedByteBuffer> mappedByteBufferMap = new ConcurrentHashMap<>(100);
 
 
@@ -167,7 +167,7 @@ public class MessageStore {
 //    }
 
 
-    public synchronized void putMessage(String bucket, Message message) {
+    public void putMessage(String bucket, Message message) {
 
 //        synchronized (this) {
 //            if (!objectOutputStreamMap.containsKey(bucket)) {
@@ -187,23 +187,19 @@ public class MessageStore {
             resultMap.put(bucket, new ConcurrentLinkedQueue<>());
         }
 
-        ConcurrentLinkedQueue<byte[]> queue = resultMap.get(bucket);
+        ConcurrentLinkedQueue<Message> queue = resultMap.get(bucket);
 
-        queue.add(((DefaultBytesMessage)message).getBytes());
+        queue.add(message);
 
         messNum++;
 
-        if(messNum > 100000){
-            flush();
+        while (messNum > 1000000) {
+            synchronized (this) {
+                while (messNum > 1000000) {
+                    flush();
+                }
+            }
         }
-
-//        while (messNum > 1000000) {
-//            synchronized (this) {
-//                while (messNum > 1000000) {
-//                    flush();
-//                }
-//            }
-//        }
 
         //先转换为数据，缓存数据版本
 
@@ -413,7 +409,10 @@ public class MessageStore {
 
     public synchronized void flush() {
 
-        long writeObjectTime = 0;
+//        long writeObjectTime = 0;
+//        long writeFileTime = 0;
+//        long seekFileTime = 0;
+//        long writeToByteTime = 0;
 
 
         //对应直接缓存版本
@@ -435,11 +434,9 @@ public class MessageStore {
 //                    }
 //                    ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(key);
 
-                    randomAccessFile.skipBytes(Math.toIntExact(position.getOrDefault(key, 0L)));
+//                    long seekFileStart = System.currentTimeMillis();
 
-//                for (Message m : copyMap.get(key)) {
-//                    localObjectOutputStream.writeObject(m);
-//                }
+                    randomAccessFile.skipBytes(Math.toIntExact(position.getOrDefault(key, 0L)));
 
 //                    long writeObjectStart = System.currentTimeMillis();
 //                    while (!resultMap.get(key).isEmpty()) {
@@ -454,18 +451,33 @@ public class MessageStore {
 //                    writeObjectTime += writeObjectEnd - writeObjectStart;
 
 //                    ByteBuffer byteBuffer = ByteBuffer.allocate(1024*1024*100);
-
+//                    long writeObjectStart = System.currentTimeMillis();
                     while (!resultMap.get(key).isEmpty()) {
-                        byteArrayOutputStream.write(resultMap.get(key).poll());
+                        Message message = resultMap.get(key).poll();
+//                        objectOutputStream.writeObject(message);
+//                        long writeToByteStart = System.currentTimeMillis();
+                        byte[] bytes = MessageUtil.write(message);
+//                        long writeToByteEnd = System.currentTimeMillis();
+                        byteArrayOutputStream.write(bytes);
+                        messNum--;
+                        message = null;
+//                        writeToByteTime += writeToByteStart - writeToByteEnd;
                     }
+//                    long writeObjectEnd = System.currentTimeMillis();
 
                     randomAccessFile.write(byteArrayOutputStream.toByteArray());
 
+//                    long writeFileEnd = System.currentTimeMillis();
+
+
                     position.put(key, randomAccessFile.length());
 
-                    byteArrayOutputStream = new ByteArrayOutputStream();
+                    byteArrayOutputStream.reset();
 //                localObjectOutputStream.close();
 //                randomAccessFile.close();
+//                 writeObjectTime += writeObjectEnd - writeObjectStart;
+//                writeFileTime += writeFileEnd - writeObjectEnd;
+//                    seekFileTime += seekFileStart - writeObjectStart;
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -475,6 +487,9 @@ public class MessageStore {
         System.out.println("本次硬盘刷新时间：" + (end - start));
         System.out.println("发送数目：" + totalNum);
 //        System.out.println("WriteObjectTime ：" + (writeObjectTime));
+//        System.out.println("WriteFileTime ：" + (writeFileTime));
+//        System.out.println("SeekFileTime ：" + (seekFileTime));
+//        System.out.println("writeToByteTime ：" + (writeToByteTime));
     }
 }
 

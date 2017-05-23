@@ -22,7 +22,6 @@ public class DefaultProducer implements Producer {
     private ObjectOutputStream objectOutputStream;
 
     private int messNum;
-    private boolean first = true;
 
     public DefaultProducer(KeyValue properties) {
         this.properties = properties;
@@ -47,39 +46,14 @@ public class DefaultProducer implements Producer {
 
     @Override
     public BytesMessage createBytesMessageToTopic(String topic, byte[] body) {
-        if(first) {
-            System.out.println("调用createBytesMessageToTopic");
-            first = false;
-        }
-        DefaultBytesMessage bytesMessage = (DefaultBytesMessage) messageFactory.createBytesMessageToTopic(topic, body);
-        try {
-            objectOutputStream.writeObject(bytesMessage);
-            objectOutputStream.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        bytesMessage.setBytes(byteArrayOutputStream.toByteArray());
-        byteArrayOutputStream.reset();
 
-        bytesMessage.setBody(null);
-        return bytesMessage;
+        return messageFactory.createBytesMessageToTopic(topic, body);
     }
 
     @Override
     public BytesMessage createBytesMessageToQueue(String queue, byte[] body) {
 
-        DefaultBytesMessage bytesMessage = (DefaultBytesMessage) messageFactory.createBytesMessageToQueue(queue, body);
-        try {
-            objectOutputStream.writeObject(bytesMessage);
-            objectOutputStream.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        bytesMessage.setBytes(byteArrayOutputStream.toByteArray());
-        byteArrayOutputStream.reset();
-
-        bytesMessage.setBody(null);
-        return bytesMessage;
+        return messageFactory.createBytesMessageToQueue(queue, body);
     }
 
     @Override
@@ -99,10 +73,6 @@ public class DefaultProducer implements Producer {
 
     @Override
     public void send(Message message) {
-        if(first) {
-            System.out.println("开始发送");
-            first = false;
-        }
         if (message == null) throw new ClientOMSException("Message should not be null");
         String topic = message.headers().getString(MessageHeader.TOPIC);
         String queue = message.headers().getString(MessageHeader.QUEUE);

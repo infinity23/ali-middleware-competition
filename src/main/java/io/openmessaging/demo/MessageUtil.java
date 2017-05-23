@@ -6,31 +6,45 @@ import io.openmessaging.Message;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.io.UnsupportedEncodingException;
 
 public class MessageUtil {
 
 
-
     public static byte[] write(Message message){
         BytesMessage bytesMessage = (BytesMessage) message;
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(100);
+
         try {
-            ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
-            objectOutputStream.writeObject(bytesMessage.headers());
-            objectOutputStream.writeObject(bytesMessage.properties());
-            objectOutputStream.close();
-        } catch (IOException e) {
+            byte[] header = bytesMessage.headers() == null ? new byte[0] : bytesMessage.headers().toString().getBytes("US-ASCII");
+            byte[] properties = bytesMessage.properties() == null ? new byte[0] : bytesMessage.properties().toString().getBytes("US-ASCII");
+
+            byte[] body = bytesMessage.getBody();
+            byte[] bytes = new byte[header.length + properties.length + body.length + 3];
+
+            System.arraycopy(header,0,bytes,0,header.length);
+            //ASCII 单元分隔符31
+            bytes[header.length] = 31;
+
+            System.arraycopy(properties,0,bytes,header.length + 1,properties.length);
+
+            //ASCII 单元分隔符31
+            bytes[header.length + properties.length + 1] = 31;
+
+            System.arraycopy(body,0,bytes,header.length + properties.length + 2,body.length);
+
+            //ASCII 记录分隔符30
+            bytes[header.length + properties.length + body.length + 2] = 30;
+
+
+            return bytes;
+
+
+        } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
-        byte[] body = bytesMessage.getBody();
-        int size = byteArrayOutputStream.size() + body.length;
-        byte[] bytes = new byte[size + 4];
 
+        return null;
 
-
-        System.arraycopy(byteArrayOutputStream.toByteArray(),0,bytes,0,byteArrayOutputStream.size());
-        System.arraycopy(body,0,bytes,byteArrayOutputStream.size(),body.length);
-        return bytes;
     }
 
     public static Message read(){
@@ -78,6 +92,15 @@ public class MessageUtil {
     }
 
 
+    public static void messaggToBytes(Message message){
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(100);
+        try {
+            ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
 }
 
 
