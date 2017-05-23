@@ -3,17 +3,18 @@ package io.openmessaging.demo;
 import io.openmessaging.BytesMessage;
 import io.openmessaging.Message;
 
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 
 public class MessageUtil {
+
+    private static final Charset CHARSET = Charset.forName("US-ASCII");
 
 
     public static byte[] write(Message message){
         BytesMessage bytesMessage = (BytesMessage) message;
 
-        try {
-            byte[] header = bytesMessage.headers() == null ? new byte[0] : bytesMessage.headers().toString().getBytes("US-ASCII");
-            byte[] properties = bytesMessage.properties() == null ? new byte[0] : bytesMessage.properties().toString().getBytes("US-ASCII");
+            byte[] header = bytesMessage.headers() == null ? new byte[0] : bytesMessage.headers().toString().getBytes(CHARSET);
+            byte[] properties = bytesMessage.properties() == null ? new byte[0] : bytesMessage.properties().toString().getBytes(CHARSET);
 
             byte[] body = bytesMessage.getBody();
             byte[] bytes = new byte[header.length + properties.length + body.length + 3];
@@ -35,20 +36,53 @@ public class MessageUtil {
 
             return bytes;
 
+    }
 
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
+    public static Message read(byte[] bytes){
+        int hp = -1;
+        int pp = -1;
+        for (int i = 0; i < bytes.length; i++) {
+            if(bytes[i] == 31){
+                if(hp == -1){
+                    hp = i;
+                }else {
+                    pp = i;
+                    break;
+                }
+            }
         }
 
-        return null;
+        byte[] body = new byte[bytes.length - pp - 2];
+
+        System.arraycopy(bytes,pp + 1,body,0,bytes.length - pp - 2);
+
+        DefaultBytesMessage defaultBytesMessage = new DefaultBytesMessage(body);
+
+        if(hp > 1){
+            String header = new String(bytes,0,hp,CHARSET);
+            defaultBytesMessage.setHeaders(readMap(header));
+        }
+
+        if(pp - hp > 1) {
+            String properties = new String(bytes,hp + 1,pp - hp,CHARSET);
+            defaultBytesMessage.setProperties(readMap(properties));
+        }
+
+        return defaultBytesMessage;
 
     }
 
-    public static Message read(){
-
-        return null;
+    private static DefaultKeyValue readMap(String s){
+        DefaultKeyValue keyValue = new DefaultKeyValue();
+            s = s.substring(1, s.length() - 1);
+            String[] ss = s.split(", ");
+            int index = 0;
+            for (String s1 : ss) {
+                index = s1.indexOf("=");
+                keyValue.put(s1.substring(0, index), s1.substring(index + 1, s1.length()));
+            }
+        return  keyValue;
     }
-
 
 
   //整数到字节数组的转换

@@ -115,4 +115,8 @@ public class DefaultKeyValue implements KeyValue {
         return kvs.containsKey(key);
     }
 
+    @Override
+    public String toString() {
+        return kvs.toString();
+    }
 }

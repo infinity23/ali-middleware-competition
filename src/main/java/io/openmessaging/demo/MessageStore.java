@@ -404,6 +404,13 @@ public class MessageStore {
 //
 //    }
 
+
+    private synchronized void read(){}
+
+
+
+
+
     public synchronized void flush() {
 
 //        long writeObjectTime = 0;

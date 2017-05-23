@@ -7,31 +7,38 @@ import io.openmessaging.PullConsumer;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.RandomAccessFile;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.*;
 
 public class DefaultPullConsumer implements PullConsumer {
-//    private final MessageStore messageStore = MessageStore.getInstance();
+    //    private final MessageStore messageStore = MessageStore.getInstance();
     private KeyValue properties;
     private String queue;
     private Set<String> buckets = new HashSet<>();
     private List<String> bucketList = new ArrayList<>();
-    private HashMap<String, Integer> messIdx = new HashMap<>();
-
-    private int lastIndex = 0;
-    private List<Message> resultList;
-    private String bucket;
+    //    private HashMap<String, Integer> messIdx = new HashMap<>();
+//
+//    private int lastIndex = 0;
+//    private List<Message> resultList;
+//    private String bucket;
     private Iterator<String> it;
-    private int finishedNum;
-    private boolean first;
-    private List<String> topicList;
+    //    private int finishedNum;
+//    private boolean first;
+//    private List<String> topicList;
     private ObjectInputStream objectInputStream;
     private FileInputStream fileInputStream;
+    private MappedByteBuffer mappedByteBuffer;
+    private int mark = 0;
+    private int position = 0;
 
     private String PATH;
+    private FileChannel fileChannel;
 
     public DefaultPullConsumer(KeyValue properties) {
         this.properties = properties;
-        PATH = properties.getString("STORE_PATH")+"/";
+        PATH = properties.getString("STORE_PATH") + "/";
     }
 
 
@@ -76,27 +83,68 @@ public class DefaultPullConsumer implements PullConsumer {
 //        }
 
         try {
-            if (fileInputStream == null) {
-                fileInputStream = new FileInputStream(PATH + it.next());
-                objectInputStream = new ObjectInputStream(fileInputStream);
-            }
-            if (fileInputStream.available() > 0) {
-                return (Message) objectInputStream.readObject();
-            }
-            objectInputStream.close();
-            fileInputStream.close();
-            if (it.hasNext()) {
-                fileInputStream = new FileInputStream(PATH + it.next());
-                objectInputStream = new ObjectInputStream(fileInputStream);
-                if(fileInputStream.available() == 0)
-                    return null;
-                return (Message) objectInputStream.readObject();
+
+            if (mappedByteBuffer == null) {
+                fileChannel = new RandomAccessFile(PATH + it.next(), "r").getChannel();
+                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
+                mappedByteBuffer.mark();
             }
 
-        } catch (IOException | ClassNotFoundException e) {
+            while (true) {
+                while (mappedByteBuffer.hasRemaining()) {
+                    if (mappedByteBuffer.get() == 30) {
+                        position = mappedByteBuffer.position();
+                        mappedByteBuffer.reset();
+                        byte[] bytes = new byte[position - mark];
+                        mappedByteBuffer.get(bytes);
+                        mappedByteBuffer.mark();
+                        mark = mappedByteBuffer.position();
+                        return MessageUtil.read(bytes);
+                    }
+                }
+                fileChannel.close();
+
+                if(it.hasNext()) {
+                    fileChannel = new RandomAccessFile(PATH + it.next(), "r").getChannel();
+                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
+                    mappedByteBuffer.mark();
+                    mark = 0;
+                    position = 0;
+                }else {
+                    break;
+                }
+
+            }
+
+        } catch (IOException e) {
             e.printStackTrace();
         }
         return null;
+
+
+//
+//        try {
+//            if (fileInputStream == null) {
+//                fileInputStream = new FileInputStream(PATH + it.next());
+//                objectInputStream = new ObjectInputStream(fileInputStream);
+//            }
+//            if (fileInputStream.available() > 0) {
+//                return (Message) objectInputStream.readObject();
+//            }
+//            objectInputStream.close();
+//            fileInputStream.close();
+//            if (it.hasNext()) {
+//                fileInputStream = new FileInputStream(PATH + it.next());
+//                objectInputStream = new ObjectInputStream(fileInputStream);
+//                if(fileInputStream.available() == 0)
+//                    return null;
+//                return (Message) objectInputStream.readObject();
+//            }
+//
+//        } catch (IOException | ClassNotFoundException e) {
+//            e.printStackTrace();
+//        }
+//        return null;
 
 
 //        if (buckets.size() == 0 || queue == null) {
