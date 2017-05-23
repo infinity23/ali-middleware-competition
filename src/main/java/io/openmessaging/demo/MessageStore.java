@@ -8,10 +8,7 @@ import java.io.ObjectOutputStream;
 import java.io.RandomAccessFile;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 public class MessageStore {
 
@@ -82,17 +79,17 @@ public class MessageStore {
 
 //        executorService.execute(this::flush);
 
-        byteArrayOutputStream = new ByteArrayOutputStream();
-        try {
-            objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+//        byteArrayOutputStream = new ByteArrayOutputStream();
+//        try {
+//            objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
 
     }
 
 
-    private Map<String, ObjectOutputStream> objectOutputStreamMap = new ConcurrentHashMap<>(100);
+//    private Map<String, ObjectOutputStream> objectOutputStreamMap = new ConcurrentHashMap<>(100);
 
 //    private Map<String, ByteArrayOutputStream> resultData = new ConcurrentHashMap<>(100);
 
@@ -101,7 +98,7 @@ public class MessageStore {
 
 
 
-    private ByteArrayOutputStream byteArrayOutputStream;
+    private ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
     private ObjectOutputStream objectOutputStream;
 
 
@@ -193,9 +190,9 @@ public class MessageStore {
 
         messNum++;
 
-        while (messNum > 1000000) {
+        while (messNum > 10000) {
             synchronized (this) {
-                while (messNum > 1000000) {
+                while (messNum > 10000) {
                     flush();
                 }
             }
@@ -411,7 +408,6 @@ public class MessageStore {
 
 //        long writeObjectTime = 0;
 //        long writeFileTime = 0;
-//        long seekFileTime = 0;
 //        long writeToByteTime = 0;
 
 
@@ -419,9 +415,9 @@ public class MessageStore {
         if (messNum == 0) {
             return;
         }
-        System.out.println("刷新到硬盘");
-        totalNum += messNum;
-        long start = System.currentTimeMillis();
+//        System.out.println("刷新到硬盘");
+//        totalNum += messNum;
+//        long start = System.currentTimeMillis();
         try {
                 for (String key : resultMap.keySet()) {
                     if (!randomAccessFileMap.containsKey(key)) {
@@ -433,8 +429,6 @@ public class MessageStore {
 //                        objectOutputStreamMap.put(key, new ObjectOutputStream(byteArrayOutputStream));
 //                    }
 //                    ObjectOutputStream objectOutputStream = objectOutputStreamMap.get(key);
-
-//                    long seekFileStart = System.currentTimeMillis();
 
                     randomAccessFile.skipBytes(Math.toIntExact(position.getOrDefault(key, 0L)));
 
@@ -455,13 +449,13 @@ public class MessageStore {
                     while (!resultMap.get(key).isEmpty()) {
                         Message message = resultMap.get(key).poll();
 //                        objectOutputStream.writeObject(message);
-//                        long writeToByteStart = System.currentTimeMillis();
+//                        long writeToByteStart = System.nanoTime();
                         byte[] bytes = MessageUtil.write(message);
-//                        long writeToByteEnd = System.currentTimeMillis();
+//                        long writeToByteEnd = System.nanoTime();
                         byteArrayOutputStream.write(bytes);
                         messNum--;
                         message = null;
-//                        writeToByteTime += writeToByteStart - writeToByteEnd;
+//                        writeToByteTime += (writeToByteStart - writeToByteEnd);
                     }
 //                    long writeObjectEnd = System.currentTimeMillis();
 
@@ -477,19 +471,17 @@ public class MessageStore {
 //                randomAccessFile.close();
 //                 writeObjectTime += writeObjectEnd - writeObjectStart;
 //                writeFileTime += writeFileEnd - writeObjectEnd;
-//                    seekFileTime += seekFileStart - writeObjectStart;
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
         messNum = 0;
-        long end = System.currentTimeMillis();
-        System.out.println("本次硬盘刷新时间：" + (end - start));
-        System.out.println("发送数目：" + totalNum);
+//        long end = System.currentTimeMillis();
+//        System.out.println("本次硬盘刷新时间：" + (end - start));
+//        System.out.println("发送数目：" + totalNum);
 //        System.out.println("WriteObjectTime ：" + (writeObjectTime));
 //        System.out.println("WriteFileTime ：" + (writeFileTime));
-//        System.out.println("SeekFileTime ：" + (seekFileTime));
-//        System.out.println("writeToByteTime ：" + (writeToByteTime));
+//        System.out.println("writeToByteTime ：" + (TimeUnit.NANOSECONDS.toMillis(writeToByteTime)));
     }
 }
 

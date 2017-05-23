@@ -2,42 +2,91 @@ package io.openmessaging.demo;
 
 import io.openmessaging.KeyValue;
 
-import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-public class DefaultKeyValue implements KeyValue, Serializable {
+public class DefaultKeyValue implements KeyValue {
 
-    private final Map<String, Object> kvs = new HashMap<>();
+    private final Map<String, Object> kvs = new HashMap<>(2);
+
+//    private static final int SIZE = 1024 * 10;
+//
+//    private byte[] bytes = new byte[SIZE];
+//
+//    private int position = 0;
+//
+//    private static final Charset charset = Charset.forName("US-ASCII");
 
 
     @Override
     public KeyValue put(String key, int value) {
         kvs.put(key, value);
+//        byte[] keyBytes = key.getBytes(charset);
+//        System.arraycopy(keyBytes,0,bytes,position,keyBytes.length);
+//        position += keyBytes.length;
+//
+//        byte[] valueBytes = MessageUtil.intToByte(value);
+//        System.arraycopy(keyBytes,0,bytes,position,valueBytes.length);
+//
+//        position += 4;
+//
+//        //ASCII 单元分隔符31
+//        bytes[position++] = 31;
         return this;
     }
 
     @Override
     public KeyValue put(String key, long value) {
         kvs.put(key, value);
+//        byte[] keyBytes = key.getBytes(charset);
+//        System.arraycopy(keyBytes,0,bytes,position,keyBytes.length);
+//        position += keyBytes.length;
+//
+//        byte[] valueBytes = MessageUtil.longToByte(value);
+//        System.arraycopy(keyBytes,0,bytes,position,valueBytes.length);
+//        position += 8;
+//
+//        //ASCII 单元分隔符31
+//        bytes[position++] = 31;
         return this;
     }
 
     @Override
     public KeyValue put(String key, double value) {
         kvs.put(key, value);
+//        byte[] keyBytes = key.getBytes(charset);
+//        System.arraycopy(keyBytes,0,bytes,position,keyBytes.length);
+//        position += keyBytes.length;
+//
+//        byte[] valueBytes = MessageUtil.doubleToByte(value);
+//        System.arraycopy(keyBytes,0,bytes,position,valueBytes.length);
+//        position += 8;
+//
+//        //ASCII 单元分隔符31
+//        bytes[position++] = 31;
         return this;
     }
 
     @Override
     public KeyValue put(String key, String value) {
         kvs.put(key, value);
+//        byte[] keyBytes = key.getBytes(charset);
+//        System.arraycopy(keyBytes,0,bytes,position,keyBytes.length);
+//        position += keyBytes.length;
+//
+//        byte[] valueBytes = value.getBytes(charset);
+//        System.arraycopy(keyBytes,0,bytes,position,valueBytes.length);
+//        position += valueBytes.length;
+//
+//        //ASCII 单元分隔符31
+//        bytes[position++] = 31;
         return this;
     }
 
     @Override
     public int getInt(String key) {
+
         return (Integer)kvs.getOrDefault(key, 0);
     }
 
