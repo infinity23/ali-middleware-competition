@@ -64,7 +64,7 @@ public class MessageUtil {
         }
 
         if(pp - hp > 1) {
-            String properties = new String(bytes,hp + 1,pp - hp,CHARSET);
+            String properties = new String(bytes,hp + 1,pp - hp - 1,CHARSET);
             defaultBytesMessage.setProperties(readMap(properties));
         }
 
