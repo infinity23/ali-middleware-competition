@@ -61,7 +61,11 @@ public class DefaultPullConsumer implements PullConsumer {
             return messList.poll();
         }
 
-        if(read(10000)){
+        if(read(5000)){
+            return messList.poll();
+        }
+
+        if(!messList.isEmpty()){
             return messList.poll();
         }
 
