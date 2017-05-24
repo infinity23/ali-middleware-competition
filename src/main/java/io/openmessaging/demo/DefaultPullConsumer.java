@@ -36,6 +36,12 @@ public class DefaultPullConsumer implements PullConsumer {
     private String PATH;
     private FileChannel fileChannel;
 
+//    private Map<String, LinkedList<Message>> resultMap = new HashMap<>(100);
+    private LinkedList<Message> messList = new LinkedList<>();
+    private String bucket;
+
+    private int n;
+
     public DefaultPullConsumer(KeyValue properties) {
         this.properties = properties;
         PATH = properties.getString("STORE_PATH") + "/";
@@ -50,6 +56,19 @@ public class DefaultPullConsumer implements PullConsumer {
 
     @Override
     public synchronized Message poll() {
+
+        if(!messList.isEmpty()){
+            return messList.poll();
+        }
+
+        if(read(10000)){
+            return messList.poll();
+        }
+
+        return null;
+
+
+
 
 //        while (finishedNum != bucketList.size()) {
 //            try {
@@ -82,44 +101,46 @@ public class DefaultPullConsumer implements PullConsumer {
 //            messageStore.setBuckets(topicList);
 //        }
 
-        try {
-
-            if (mappedByteBuffer == null) {
-                fileChannel = new RandomAccessFile(PATH + it.next(), "r").getChannel();
-                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
-                mappedByteBuffer.mark();
-            }
-
-            while (true) {
-                while (mappedByteBuffer.hasRemaining()) {
-                    if (mappedByteBuffer.get() == 30) {
-                        position = mappedByteBuffer.position();
-                        mappedByteBuffer.reset();
-                        byte[] bytes = new byte[position - mark];
-                        mappedByteBuffer.get(bytes);
-                        mappedByteBuffer.mark();
-                        mark = mappedByteBuffer.position();
-                        return MessageUtil.read(bytes);
-                    }
-                }
-                fileChannel.close();
-
-                if(it.hasNext()) {
-                    fileChannel = new RandomAccessFile(PATH + it.next(), "r").getChannel();
-                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
-                    mappedByteBuffer.mark();
-                    mark = 0;
-                    position = 0;
-                }else {
-                    break;
-                }
-
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return null;
+//        try {
+//
+//            if (mappedByteBuffer == null) {
+//
+//
+//                fileChannel = new RandomAccessFile(PATH + bucket, "r").getChannel();
+//                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
+//                mappedByteBuffer.mark();
+//            }
+//
+//            while (true) {
+//                while (mappedByteBuffer.hasRemaining()) {
+//                    if (mappedByteBuffer.get() == 30) {
+//                        position = mappedByteBuffer.position();
+//                        mappedByteBuffer.reset();
+//                        byte[] bytes = new byte[position - mark];
+//                        mappedByteBuffer.get(bytes);
+//                        mappedByteBuffer.mark();
+//                        mark = mappedByteBuffer.position();
+//                        return MessageUtil.read(bytes);
+//                    }
+//                }
+//                fileChannel.close();
+//
+//                if(it.hasNext()) {
+//                    fileChannel = new RandomAccessFile(PATH + it.next(), "r").getChannel();
+//                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
+//                    mappedByteBuffer.mark();
+//                    mark = 0;
+//                    position = 0;
+//                }else {
+//                    break;
+//                }
+//
+//            }
+//
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//        return null;
 
 
 //
@@ -169,6 +190,58 @@ public class DefaultPullConsumer implements PullConsumer {
 //            }
 //        }
 //        return null;
+    }
+
+    private boolean read(int num) {
+        try {
+            if (mappedByteBuffer == null) {
+                bucket = it.next();
+                messList = new LinkedList<>();
+//                resultMap.put(bucket,messList);
+
+                fileChannel = new RandomAccessFile(PATH + bucket, "r").getChannel();
+                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
+                mappedByteBuffer.mark();
+            }
+
+            while (true) {
+                while (mappedByteBuffer.hasRemaining()) {
+                    if(n > num){
+                        return true;
+                    }
+                    if (mappedByteBuffer.get() == 30) {
+                        position = mappedByteBuffer.position();
+                        mappedByteBuffer.reset();
+                        byte[] bytes = new byte[position - mark];
+                        mappedByteBuffer.get(bytes);
+                        mappedByteBuffer.mark();
+                        mark = mappedByteBuffer.position();
+                        messList.add(MessageUtil.read(bytes));
+                        n++;
+                    }
+                }
+                fileChannel.close();
+
+                if(it.hasNext()) {
+                    bucket = it.next();
+                    messList = new LinkedList<>();
+//                    resultMap.put(bucket,messList);
+
+                    fileChannel = new RandomAccessFile(PATH + bucket, "r").getChannel();
+                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
+                    mappedByteBuffer.mark();
+                    mark = 0;
+                    position = 0;
+                }else {
+                    break;
+                }
+
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
     @Override
