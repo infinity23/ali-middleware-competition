@@ -4,7 +4,7 @@ import io.openmessaging.BytesMessage;
 import io.openmessaging.KeyValue;
 import io.openmessaging.Message;
 
-public class DefaultBytesMessage implements BytesMessage{
+public class DefaultBytesMessage implements BytesMessage {
 
     private KeyValue headers;
     private KeyValue properties;

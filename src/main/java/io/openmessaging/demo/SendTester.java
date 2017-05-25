@@ -35,6 +35,8 @@ public class SendTester {
                         producer1.send(message);
                     }
                 }
+
+                producer1.flush();
                 System.out.println("线程完成： "+ finalI);
             });
         }
@@ -62,7 +64,7 @@ public class SendTester {
 //        producer.send(message1);
 //        producer.send(message2);
 
-        MessageStore.getInstance(null).flush();
+//        MessageStore.getInstance(null).flush();
 
         long end = System.currentTimeMillis();
 

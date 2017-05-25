@@ -9,6 +9,8 @@ import java.util.concurrent.*;
 public class PollTester {
 
 
+    private volatile static int n;
+
     public static void main(String[] args) {
         ExecutorService executorService = Executors.newCachedThreadPool();
         KeyValue properties = new DefaultKeyValue();
@@ -32,6 +34,7 @@ public class PollTester {
 
 
                 Message message = consumer.poll();
+                n++;
                 while (message != null) {
                     String topic = message.headers().getString(MessageHeader.TOPIC);
                     String queue = message.headers().getString(MessageHeader.QUEUE);
@@ -44,6 +47,7 @@ public class PollTester {
                         Assert.assertArrayEquals(((BytesMessage) message).getBody(), ((BytesMessage) queueList.poll()).getBody());
                     }
                     message = consumer.poll();
+                    n ++;
                 }
                 System.out.println("线程" + finalI + "完成");
 
@@ -67,6 +71,8 @@ public class PollTester {
 
         long endConsumer = System.currentTimeMillis();
         long T2 = endConsumer - startConsumer;
+
+        System.out.println("Pull: " + n);
 
         System.out.println("Poll Cost: " + T2);
     }

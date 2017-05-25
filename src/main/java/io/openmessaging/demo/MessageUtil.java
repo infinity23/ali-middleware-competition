@@ -74,13 +74,37 @@ public class MessageUtil {
 
     private static DefaultKeyValue readMap(String s){
         DefaultKeyValue keyValue = new DefaultKeyValue();
-            s = s.substring(1, s.length() - 1);
-            String[] ss = s.split(", ");
-            int index = 0;
-            for (String s1 : ss) {
-                index = s1.indexOf("=");
-                keyValue.put(s1.substring(0, index), s1.substring(index + 1, s1.length()));
-            }
+//            s = s.substring(1, s.length() - 1);
+//            String[] ss = s.split(", ");
+//            int index = 0;
+//            for (String s1 : ss) {
+//                index = s1.indexOf("=");
+//                keyValue.put(s1.substring(0, index), s1.substring(index + 1, s1.length()));
+//            }
+//
+
+        char com = ',';
+        char equ = '=';
+        int indexOfCom;
+        int lastIndexOfCom = s.indexOf(com);
+        int indexOfEqu = s.indexOf(equ);
+
+        if(s.indexOf(com) == -1){
+            keyValue.put(s.substring(1, indexOfEqu), s.substring(indexOfEqu + 1, s.length() - 1));
+            return keyValue;
+        }
+
+        keyValue.put(s.substring(1, indexOfEqu), s.substring(indexOfEqu + 1, lastIndexOfCom));
+
+        while ((indexOfCom = s.indexOf(lastIndexOfCom + 1, com)) != -1){
+            indexOfEqu = s.indexOf(lastIndexOfCom + 1, equ);
+            keyValue.put(s.substring(lastIndexOfCom + 2, indexOfEqu), s.substring(indexOfEqu + 1, indexOfCom));
+            lastIndexOfCom = indexOfCom;
+        }
+
+        indexOfEqu = s.indexOf(lastIndexOfCom, equ);
+        keyValue.put(s.substring(lastIndexOfCom + 2, indexOfEqu), s.substring(indexOfEqu + 1, s.length() - 1));
+
         return  keyValue;
     }
 
