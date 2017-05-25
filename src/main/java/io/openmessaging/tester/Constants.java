@@ -7,6 +7,7 @@ public class Constants {
     public final static int CON_NUM = Integer.valueOf(System.getProperty("con.num", "10"));
     public final static String PRO_PRE = System.getProperty("pro.pre","PRODUCER_");
     public final static int PRO_MAX = Integer.valueOf(System.getProperty("pro.max","10000"));
+//    public final static int PRO_MAX = Integer.valueOf(System.getProperty("pro.max","100000"));
 //    public final static int PRO_MAX = Integer.valueOf(System.getProperty("pro.max","100"));
 //    public final static int PRO_MAX = Integer.valueOf(System.getProperty("pro.max","4000000"));
     public final static String CON_PRE = System.getProperty("con.pre", "CONSUMER_");

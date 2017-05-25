@@ -4,15 +4,14 @@ import io.openmessaging.KeyValue;
 import io.openmessaging.Message;
 import io.openmessaging.PullConsumer;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.*;
 
 public class DefaultPullConsumer implements PullConsumer {
+    public static final int CACHE_SIZE = 1024 * 10;
+    public static final int MESS_CACHE = 50000;
     //    private final MessageStore messageStore = MessageStore.getInstance();
     private KeyValue properties;
     private String queue;
@@ -27,8 +26,6 @@ public class DefaultPullConsumer implements PullConsumer {
     //    private int finishedNum;
 //    private boolean first;
 //    private List<String> topicList;
-    private ObjectInputStream objectInputStream;
-    private FileInputStream fileInputStream;
     private MappedByteBuffer mappedByteBuffer;
     private int mark = 0;
     private int position = 0;
@@ -37,18 +34,16 @@ public class DefaultPullConsumer implements PullConsumer {
     private String PATH;
     private FileChannel fileChannel;
 
-//    private Map<String, LinkedList<Message>> resultMap = new HashMap<>(100);
     private LinkedList<Message> messList = new LinkedList<>();
+    private LinkedList<byte[]> bytesList = new LinkedList<>();
     private String bucket;
 
     private RandomAccessFile randomAccessFile;
 
     private int n;
 
-
-
-
     private byte[] cache;
+    private int cached;
 
 
     public DefaultPullConsumer(KeyValue properties) {
@@ -68,22 +63,23 @@ public class DefaultPullConsumer implements PullConsumer {
 
 
     @Override
-    public synchronized Message poll() {
-//
-//        if(!messList.isEmpty()){
-//            return messList.poll();
+    public Message poll() {
+
+        //对应mmp读缓存
+//        if(!bytesList.isEmpty()){
+//            return MessageUtil.read(bytesList.poll());
 //        }
 //
-//        if(read(5000)){
-//            n = 0;
-//            return messList.poll();
+//        if(read()){
+//            return MessageUtil.read(bytesList.poll());
 //        }
 //
-//        if(!messList.isEmpty()){
-//            return messList.poll();
+//        if(!bytesList.isEmpty()){
+//            return MessageUtil.read(bytesList.poll());
 //        }
 //
 //        return null;
+
 
 
         //缓存版，先读到一个byte[]
@@ -116,13 +112,8 @@ public class DefaultPullConsumer implements PullConsumer {
 
 
 
-
-
-
-
-
 //      正式版，每次读一个
-
+//
         try {
 
             if (mappedByteBuffer == null) {
@@ -224,35 +215,74 @@ public class DefaultPullConsumer implements PullConsumer {
 //        return null;
     }
 
-    private boolean read() {
+    public boolean read() {
 
-        try {
-            if (it.hasNext()) {
-                //mappedByteBuffer写
-//                fileChannel = new RandomAccessFile(PATH + it.next(), "r").getChannel();
-//                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
-//                cache = new byte[(int) fileChannel.size()];
-//                mappedByteBuffer.get(cache);
+        //读到cache
+//        try {
+//            if(cached != 0 && cached < randomAccessFile.length()){
+//                if(cached < randomAccessFile.length() - CACHE_SIZE){
+//                    int p = CACHE_SIZE;
+//                    randomAccessFile.skipBytes(p);
+//                    while (randomAccessFile.read()!=30){
+//                        p++;
+//                    }
+//                    cache = new byte[p];
+//                    randomAccessFile.seek(cached);
+//                    randomAccessFile.read(cache);
+//                    cached += p;
+//                    return true;
+//                }
+//
+//                cache = new byte[(int) (randomAccessFile.length() - cached)];
+//                randomAccessFile.seek(cached);
+//                randomAccessFile.read(cache);
+//                cached = (int) randomAccessFile.length();
+//                return true;
+//            }
+//
+//            if (it.hasNext()) {
+//                //mappedByteBuffer读
+////                fileChannel = new RandomAccessFile(PATH + it.next(), "r").getChannel();
+////                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
+////                cache = new byte[(int) fileChannel.size()];
+////                mappedByteBuffer.get(cache);
+//
+//                //RandomAccessFile读
+////                randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
+////                cache = new byte[(int) randomAccessFile.length()];
+////                randomAccessFile.read(cache);
+////                randomAccessFile.close();
+////                return true;
+//
+//                //先读到一定量的cache
+//                cached = 0;
+//                randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
+//
+//                int p = CACHE_SIZE;
+//                randomAccessFile.skipBytes(p);
+//                int n = -1;
+//                while ((n = randomAccessFile.read())!=30){
+//                    p++;
+//                }
+//                cache = new byte[p];
+//                randomAccessFile.seek(cached);
+//                randomAccessFile.read(cache);
+//                cached += p;
+//
+//                return true;
+//            }
+//        }catch (IOException e){
+//            e.printStackTrace();
+//        }
+//
+//        return false;
 
-                //RandomAccessFile写
-                randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
-                cache = new byte[(int) randomAccessFile.length()];
-                randomAccessFile.read(cache);
-                randomAccessFile.close();
-                return true;
-            }
-        }catch (IOException e){
-            e.printStackTrace();
-        }
-
-        return false;
 
 
-
+        //读到messList
 //        try {
 //            if (mappedByteBuffer == null) {
 //                bucket = it.next();
-////                resultMap.put(bucket,messList);
 //
 //                fileChannel = new RandomAccessFile(PATH + bucket, "r").getChannel();
 //                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
@@ -261,7 +291,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //
 //            while (true) {
 //                while (mappedByteBuffer.hasRemaining()) {
-//                    if(n > num){
+//                    if (bytesList.size() > MESS_CACHE) {
 //                        return true;
 //                    }
 //                    if (mappedByteBuffer.get() == 30) {
@@ -271,31 +301,27 @@ public class DefaultPullConsumer implements PullConsumer {
 //                        mappedByteBuffer.get(bytes);
 //                        mappedByteBuffer.mark();
 //                        mark = mappedByteBuffer.position();
-//                        messList.add(MessageUtil.read(bytes));
-//                        n++;
+//                        bytesList.add(bytes);
 //                    }
 //                }
 //                fileChannel.close();
 //
-//                if(it.hasNext()) {
+//                if (it.hasNext()) {
 //                    bucket = it.next();
-////                    resultMap.put(bucket,messList);
-//
 //                    fileChannel = new RandomAccessFile(PATH + bucket, "r").getChannel();
 //                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
 //                    mappedByteBuffer.mark();
 //                    mark = 0;
 //                    position = 0;
-//                }else {
+//                } else {
 //                    break;
 //                }
-//
 //            }
 //
 //        } catch (IOException e) {
 //            e.printStackTrace();
 //        }
-//        return false;
+        return false;
     }
 
     @Override
@@ -315,7 +341,7 @@ public class DefaultPullConsumer implements PullConsumer {
 
     //只能绑定一个queue和多个topics
     @Override
-    public synchronized void attachQueue(String queueName, Collection<String> topics) {
+    public void attachQueue(String queueName, Collection<String> topics) {
         if (queue != null && !queue.equals(queueName)) {
             throw new ClientOMSException("You have already attached to a queue " + queue);
         }
@@ -326,11 +352,19 @@ public class DefaultPullConsumer implements PullConsumer {
 //        bucketList.addAll(buckets);
         it = bucketList.iterator();
 
+
+
+//        读到缓存
+//        try {
+//            fileChannel = new RandomAccessFile(PATH + it.next(), "r").getChannel();
+//            mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
+//            mappedByteBuffer.mark();
+//        }catch (IOException e){
+//            e.printStackTrace();
+//        }
+
 //        read();
 
+
     }
-
-
-
-
 }

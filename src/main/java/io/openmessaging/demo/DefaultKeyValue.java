@@ -8,7 +8,9 @@ import java.util.Set;
 
 public class DefaultKeyValue implements KeyValue {
 
-    private final Map<String, Object> kvs = new HashMap<>(2);
+
+    //header里有17个,properties有几个
+    private final Map<String, Object> kvs = new HashMap<>(17);
 
 //    private static final int SIZE = 1024 * 10;
 //

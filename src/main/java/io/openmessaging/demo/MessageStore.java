@@ -3,6 +3,7 @@ package io.openmessaging.demo;
 import io.openmessaging.Message;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
@@ -133,23 +134,23 @@ public class MessageStore {
 
 
         //直接缓存版本
-//        if (!resultMap.containsKey(bucket)) {
-//            resultMap.put(bucket, new ConcurrentLinkedQueue<>());
-//        }
-//
-//        ConcurrentLinkedQueue<Message> queue = resultMap.get(bucket);
-//
-//        queue.add(message);
-//
-//        messNum++;
-//
-//        while (messNum > 100000) {
-//            synchronized (this) {
-//                while (messNum > 100000) {
-//                    flush();
-//                }
-//            }
-//        }
+        if (!resultMap.containsKey(bucket)) {
+            resultMap.put(bucket, new ConcurrentLinkedQueue<>());
+        }
+
+        ConcurrentLinkedQueue<Message> queue = resultMap.get(bucket);
+
+        queue.add(message);
+
+        messNum++;
+
+        while (messNum > 100000) {
+            synchronized (this) {
+                while (messNum > 100000) {
+                    flush();
+                }
+            }
+        }
 
 
 //        先转换为数据，缓存数据版本
@@ -191,6 +192,43 @@ public class MessageStore {
 
     }
 
+//    public Message pullMessage(String bucket){
+//        try {
+//            if (!mappedByteBufferMap.containsKey(bucket)) {
+//                FileChannel fileChannel = new RandomAccessFile(PATH + bucket, "r").getChannel();
+//                mappedByteBufferMap.put(bucket, fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size()));
+//            }
+//
+//            MappedByteBuffer mappedByteBuffer = mappedByteBufferMap.get(bucket);
+//
+//            while (mappedByteBuffer.hasRemaining()) {
+//                if (mappedByteBuffer.get() == 30) {
+//                    position = mappedByteBuffer.position();
+//                    mappedByteBuffer.reset();
+//                    byte[] bytes = new byte[position - mark];
+//                    mappedByteBuffer.get(bytes);
+//                    mappedByteBuffer.mark();
+//                    mark = mappedByteBuffer.position();
+//
+////                        long readToMessageStart = System.currentTimeMillis();
+//                    Message message = MessageUtil.read(bytes);
+////                        long readToMessageEnd = System.currentTimeMillis();
+////                        readToMessageTime += readToMessageEnd - readToMessageStart;
+//
+//                    return message;
+//                }
+//            }
+//
+//
+//
+//        }catch (IOException e){
+//            e.printStackTrace();
+//        }
+//
+//
+//
+//    }
+
 
     public synchronized void flush() {
 
@@ -200,51 +238,51 @@ public class MessageStore {
 
 
         //对应直接缓存版本
-//        if (messNum == 0) {
-//            return;
-//        }
-////        System.out.println("刷新到硬盘");
-////        totalNum += messNum;
-////        long start = System.currentTimeMillis();
-//        try {
-//                for (String key : resultMap.keySet()) {
-//                    if (!randomAccessFileMap.containsKey(key)) {
-//                        randomAccessFileMap.put(key, new RandomAccessFile(PATH + key, "rw"));
-//                    }
-//                    RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
-//
-//                    randomAccessFile.skipBytes((int)(long)(position.getOrDefault(key, 0L)));
-//
-////                    ByteBuffer byteBuffer = ByteBuffer.allocate(1024*1024*100);
-////                    long writeObjectStart = System.currentTimeMillis();
-//                    while (!resultMap.get(key).isEmpty()) {
-//                        Message message = resultMap.get(key).poll();
-////                        long writeToByteStart = System.nanoTime();
-//                        byte[] bytes = MessageUtil.write(message);
-////                        long writeToByteEnd = System.nanoTime();
-//                        byteArrayOutputStream.write(bytes);
-//                        message = null;
-////                        writeToByteTime += (writeToByteStart - writeToByteEnd);
-//                    }
-////                    long writeObjectEnd = System.currentTimeMillis();
-//
-//                    randomAccessFile.write(byteArrayOutputStream.toByteArray());
-//
-////                    long writeFileEnd = System.currentTimeMillis();
-//
-//
-//                    position.put(key, randomAccessFile.length());
-//
-//                    byteArrayOutputStream.reset();
-////                localObjectOutputStream.close();
-////                randomAccessFile.close();
-////                 writeObjectTime += writeObjectEnd - writeObjectStart;
-////                writeFileTime += writeFileEnd - writeObjectEnd;
-//            }
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//        messNum = 0;
+        if (messNum == 0) {
+            return;
+        }
+//        System.out.println("刷新到硬盘");
+//        totalNum += messNum;
+//        long start = System.currentTimeMillis();
+        try {
+                for (String key : resultMap.keySet()) {
+                    if (!randomAccessFileMap.containsKey(key)) {
+                        randomAccessFileMap.put(key, new RandomAccessFile(PATH + key, "rw"));
+                    }
+                    RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
+
+                    randomAccessFile.skipBytes((int)(long)(position.getOrDefault(key, 0L)));
+
+//                    ByteBuffer byteBuffer = ByteBuffer.allocate(1024*1024*100);
+//                    long writeObjectStart = System.currentTimeMillis();
+                    while (!resultMap.get(key).isEmpty()) {
+                        Message message = resultMap.get(key).poll();
+//                        long writeToByteStart = System.nanoTime();
+                        byte[] bytes = MessageUtil.write(message);
+//                        long writeToByteEnd = System.nanoTime();
+                        byteArrayOutputStream.write(bytes);
+                        message = null;
+//                        writeToByteTime += (writeToByteStart - writeToByteEnd);
+                    }
+//                    long writeObjectEnd = System.currentTimeMillis();
+
+                    randomAccessFile.write(byteArrayOutputStream.toByteArray());
+
+//                    long writeFileEnd = System.currentTimeMillis();
+
+
+                    position.put(key, randomAccessFile.length());
+
+                    byteArrayOutputStream.reset();
+//                localObjectOutputStream.close();
+//                randomAccessFile.close();
+//                 writeObjectTime += writeObjectEnd - writeObjectStart;
+//                writeFileTime += writeFileEnd - writeObjectEnd;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        messNum = 0;
 
 
 //        long end = System.currentTimeMillis();
