@@ -62,7 +62,11 @@ public class ProducerTester {
                         queueOrTopic = "TOPIC_" + random.nextInt(10);
                     }
                     Message message = producer.createBytesMessageToQueue(queueOrTopic, (label + "_" + offsets.get(queueOrTopic)).getBytes());
+
+                    //检测属性
                     message.putProperties("properties",offsets.get(queueOrTopic));
+                    message.putProperties("properties2",100);
+
                     logger.debug("queueOrTopic:{} offset:{}", queueOrTopic, label + "_" + offsets.get(queueOrTopic));
                     offsets.put(queueOrTopic, offsets.get(queueOrTopic) + 1);
                     producer.send(message);

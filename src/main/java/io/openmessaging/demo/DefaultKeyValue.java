@@ -87,17 +87,17 @@ public class DefaultKeyValue implements KeyValue {
     @Override
     public int getInt(String key) {
 
-        return (Integer)kvs.getOrDefault(key, 0);
+        return Integer.parseInt((String) kvs.getOrDefault(key, 0));
     }
 
     @Override
     public long getLong(String key) {
-        return (Long)kvs.getOrDefault(key, 0L);
+        return Long.parseLong((String) kvs.getOrDefault(key, 0L));
     }
 
     @Override
     public double getDouble(String key) {
-        return (Double)kvs.getOrDefault(key, 0.0d);
+        return Double.parseDouble((String) kvs.getOrDefault(key, 0.0d));
     }
 
     @Override

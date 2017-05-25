@@ -96,13 +96,13 @@ public class MessageUtil {
 
         keyValue.put(s.substring(1, indexOfEqu), s.substring(indexOfEqu + 1, lastIndexOfCom));
 
-        while ((indexOfCom = s.indexOf(lastIndexOfCom + 1, com)) != -1){
-            indexOfEqu = s.indexOf(lastIndexOfCom + 1, equ);
+        while ((indexOfCom = s.indexOf(com, lastIndexOfCom + 1)) != -1){
+            indexOfEqu = s.indexOf(equ, lastIndexOfCom + 1);
             keyValue.put(s.substring(lastIndexOfCom + 2, indexOfEqu), s.substring(indexOfEqu + 1, indexOfCom));
             lastIndexOfCom = indexOfCom;
         }
 
-        indexOfEqu = s.indexOf(lastIndexOfCom, equ);
+        indexOfEqu = s.indexOf(equ, lastIndexOfCom);
         keyValue.put(s.substring(lastIndexOfCom + 2, indexOfEqu), s.substring(indexOfEqu + 1, s.length() - 1));
 
         return  keyValue;

@@ -80,7 +80,9 @@ public class ConsumerTester {
                     int index = body.lastIndexOf("_");
                     String producer = body.substring(0, index);
                     String properties = (message).properties().getString("properties");
+                    int properties2 = (message).properties().getInt("properties2");
 
+                    assert properties2==100;
 
                     if(Integer.parseInt(properties) != offsets.get(queueOrTopic).get(producer)){
                         logger.error("properties not equal expected:{} actual:{} producer:{} queueOrTopic:{}",
