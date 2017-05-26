@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class MessageStore {
 
@@ -30,7 +31,8 @@ public class MessageStore {
     private int finishedNum;
     //    private Map<String, Integer> topicMap = new ConcurrentHashMap<>(100);
     private Map<String, Long> position = new HashMap<>(100);
-    private volatile long messNum;
+//    private AtomicInteger messNum = new AtomicInteger();
+    private AtomicInteger messNum = new AtomicInteger();
     private volatile long totalNum;
     private volatile boolean flushing;
     private Map<String, RandomAccessFile> randomAccessFileMap = new ConcurrentHashMap<>(100);
@@ -64,45 +66,6 @@ public class MessageStore {
     public MessageStore(String path) {
         PATH = path + "/";
 
-//        缓存清理线程
-//        while (true) {
-//            try {
-//                TimeUnit.MILLISECONDS.sleep(SLEEP_TIME);
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            }
-//            if (messNum > MAX_MESS_NUM) {
-//                flush();
-//            }
-//        }
-//        for (int i = 0; i < 5; i++) {
-//            executorService.execute(() -> {
-//                while (messNum == 0) {
-//                    while(messNum > 0) {
-//                        flush();
-////                        synchronized (this) {
-////                            this.notifyAll();
-////                        }
-////                        try {
-////                            TimeUnit.MILLISECONDS.sleep(SLEEP_TIME);
-////                        } catch (InterruptedException e) {
-////                            e.printStackTrace();
-////                        }
-//                    }
-//                }
-//            });
-//        }
-
-
-//        executorService.execute(this::flush);
-
-//        byteArrayOutputStream = new ByteArrayOutputStream();
-//        try {
-//            objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-
     }
 
 
@@ -130,7 +93,7 @@ public class MessageStore {
 //        }
 
 
-    public void putMessage(String bucket, Message message) {
+    public synchronized void putMessage(String bucket, Message message) {
 
 
         //直接缓存版本
@@ -138,15 +101,16 @@ public class MessageStore {
             resultMap.put(bucket, new ConcurrentLinkedQueue<>());
         }
 
-        ConcurrentLinkedQueue<Message> queue = resultMap.get(bucket);
+//        synchronized (this) {
+            ConcurrentLinkedQueue<Message> queue = resultMap.get(bucket);
+            queue.add(message);
+//        }
 
-        queue.add(message);
+        messNum.getAndIncrement();
 
-        messNum++;
-
-        while (messNum > 100000) {
+        while (messNum.get()> 100000) {
             synchronized (this) {
-                while (messNum > 100000) {
+                while (messNum.get() > 100000) {
                     flush();
                 }
             }
@@ -155,18 +119,21 @@ public class MessageStore {
 
 //        先转换为数据，缓存数据版本
 
-//        messNum++;
+//        messNum.getAndIncrement();
 //        if (!resultData.containsKey(bucket)) {
 //            resultData.put(bucket, ByteBuffer.allocateDirect(CACHE_SIZE));
 //        }
 //
-//        ByteBuffer byteBuffer = resultData.get(bucket);
 //
-//        byteBuffer.put(MessageUtil.write(message));
+//        synchronized (this) {
+//            ByteBuffer byteBuffer = resultData.get(bucket);
+//            byteBuffer.put(MessageUtil.write(message));
+//        }
 //
-//        while (messNum > 100000) {
+//
+//        while (messNum.get() > 100000) {
 //            synchronized (this) {
-//                while (messNum > 100000) {
+//                while (messNum.get() > 100000) {
 //                    flush();
 //                }
 //            }
@@ -182,10 +149,10 @@ public class MessageStore {
 //            }
 //
 //            byte[] bytes = MessageUtil.write(message);
-//            synchronized (this) {
+////            synchronized (this) {
 //                MappedByteBuffer mappedByteBuffer = mappedByteBufferMap.get(bucket);
 //                mappedByteBuffer.put(bytes);
-//            }
+////            }
 //        } catch (IOException e) {
 //            e.printStackTrace();
 //        }
@@ -238,7 +205,7 @@ public class MessageStore {
 
 
         //对应直接缓存版本
-        if (messNum == 0) {
+        if (messNum.get() == 0) {
             return;
         }
 //        System.out.println("刷新到硬盘");
@@ -251,7 +218,7 @@ public class MessageStore {
                     }
                     RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
 
-                    randomAccessFile.skipBytes((int)(long)(position.getOrDefault(key, 0L)));
+//                    randomAccessFile.skipBytes((int)(long)(position.getOrDefault(key, 0L)));
 
 //                    ByteBuffer byteBuffer = ByteBuffer.allocate(1024*1024*100);
 //                    long writeObjectStart = System.currentTimeMillis();
@@ -271,7 +238,7 @@ public class MessageStore {
 //                    long writeFileEnd = System.currentTimeMillis();
 
 
-                    position.put(key, randomAccessFile.length());
+//                    position.put(key, randomAccessFile.length());
 
                     byteArrayOutputStream.reset();
 //                localObjectOutputStream.close();
@@ -282,7 +249,7 @@ public class MessageStore {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        messNum = 0;
+        messNum.set(0);
 
 
 //        long end = System.currentTimeMillis();
@@ -294,23 +261,21 @@ public class MessageStore {
 
 
         // 对应缓存数据版本
-//        System.out.println("刷新到硬盘");
-//        long start = System.currentTimeMillis();
+////        System.out.println("刷新到硬盘");
+////        long start = System.currentTimeMillis();
 ////        Map<String, ByteBuffer> copyMap = resultData;
 ////        resultData = new ConcurrentHashMap<>(100);
-//        messNum = 0;
+//        messNum.set(0);
 //        try {
 //            for (String key : resultData.keySet()) {
 //                if (!mappedByteBufferMap.containsKey(key)) {
-//                    mappedByteBufferMap.put(key, new RandomAccessFile(PATH + key, "rw").getChannel().map(FileChannel.MapMode.READ_WRITE,0,1024*1024*100));
+//                    mappedByteBufferMap.put(key, new RandomAccessFile(PATH + key, "rw").getChannel().map(FileChannel.MapMode.READ_WRITE,0,1024*1024*500));
 //                }
 //                MappedByteBuffer mappedByteBuffer  = mappedByteBufferMap.get(key);
 ////                randomAccessFile.skipBytes((int)(long)position.getOrDefault(key, 0L));
 //                ByteBuffer byteBuffer = resultData.get(key);
 //
-//
 //                mappedByteBuffer.put(byteBuffer);
-//
 //
 //                //清理bytebuffer
 //                ((DirectBuffer)byteBuffer).cleaner().clean();
@@ -323,8 +288,12 @@ public class MessageStore {
 //            e.printStackTrace();
 //        }
 //
-//        long end = System.currentTimeMillis();
-//        System.out.println("本次硬盘刷新时间：" + (end - start));
+////        long end = System.currentTimeMillis();
+////        System.out.println("本次硬盘刷新时间：" + (end - start));
+
+
+
+
     }
 
 }
