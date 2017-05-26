@@ -4,13 +4,14 @@ import io.openmessaging.KeyValue;
 import io.openmessaging.Message;
 import io.openmessaging.PullConsumer;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.*;
 
 public class DefaultPullConsumer implements PullConsumer {
-    public static final int CACHE_SIZE = 1024 * 10;
+    public static final int CACHE_SIZE = 1024 * 1024 * 50;
     public static final int MESS_CACHE = 50000;
     //    private final MessageStore messageStore = MessageStore.getInstance();
     private KeyValue properties;
@@ -43,8 +44,8 @@ public class DefaultPullConsumer implements PullConsumer {
     private int n;
 
     private byte[] cache;
-    private int cached;
 
+    private int cached;
 
     public DefaultPullConsumer(KeyValue properties) {
         this.properties = properties;
@@ -83,199 +84,148 @@ public class DefaultPullConsumer implements PullConsumer {
 
 
         //缓存版，先读到一个byte[]
-//        while(position < cache.length){
-//            if(cache[position] == 30){
-//                byte[] bytes = new byte[position - lastPositin];
-//                System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
-//                lastPositin = position++;
-//                return MessageUtil.read(bytes);
-//            }
-//            position ++;
-//        }
-//
-//        if(read()){
-//            position = 0;
-//            lastPositin = -1;
-//            while(position < cache.length){
-//                if(cache[position] == 30){
-//                    byte[] bytes = new byte[position - lastPositin];
-//                    System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
-//                    lastPositin = position++;
-//                    return MessageUtil.read(bytes);
-//                }
-//                position++;
-//            }
-//        }
-//
-//        return null;
+
+        while(position < cache.length){
+            if(cache[position] == 30){
+                byte[] bytes = new byte[position - lastPositin];
+                System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
+                lastPositin = position++;
+                return MessageUtil.read(bytes);
+            }
+            position ++;
+        }
+
+        if(read()){
+            position = 0;
+            lastPositin = -1;
+            while(position < cache.length){
+                if(cache[position] == 30){
+                    byte[] bytes = new byte[position - lastPositin];
+                    System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
+                    lastPositin = position++;
+                    return MessageUtil.read(bytes);
+                }
+                position++;
+            }
+        }
+
+        return null;
 
 
 
 
 //      正式版，每次读一个
-//
-        try {
-
-            if (mappedByteBuffer == null) {
-
-                fileChannel = new RandomAccessFile(PATH + it.next(), "r").getChannel();
-                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
-
-                mappedByteBuffer.mark();
-
-            }
-
-            while (true) {
-                while (mappedByteBuffer.hasRemaining()) {
-                    if (mappedByteBuffer.get() == 30) {
-                        position = mappedByteBuffer.position();
-                        mappedByteBuffer.reset();
-                        byte[] bytes = new byte[position - mark];
-                        mappedByteBuffer.get(bytes);
-                        mappedByteBuffer.mark();
-                        mark = mappedByteBuffer.position();
-
-//                        long readToMessageStart = System.currentTimeMillis();
-                        Message message = MessageUtil.read(bytes);
-//                        long readToMessageEnd = System.currentTimeMillis();
-//                        readToMessageTime += readToMessageEnd - readToMessageStart;
-
-                        return message;
-                    }
-                }
-                fileChannel.close();
-
-                if(it.hasNext()) {
-                    fileChannel = new RandomAccessFile(PATH + it.next(), "r").getChannel();
-                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
-
-                    mappedByteBuffer.mark();
-                    mark = 0;
-                    position = 0;
-                }else {
-                    break;
-                }
-
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-//        System.out.println("readToMessageTime: " + readToMessageTime);
-        return null;
-
-
-//
+////
 //        try {
-//            if (fileInputStream == null) {
-//                fileInputStream = new FileInputStream(PATH + it.next());
-//                objectInputStream = new ObjectInputStream(fileInputStream);
-//            }
-//            if (fileInputStream.available() > 0) {
-//                return (Message) objectInputStream.readObject();
-//            }
-//            objectInputStream.close();
-//            fileInputStream.close();
-//            if (it.hasNext()) {
-//                fileInputStream = new FileInputStream(PATH + it.next());
-//                objectInputStream = new ObjectInputStream(fileInputStream);
-//                if(fileInputStream.available() == 0)
-//                    return null;
-//                return (Message) objectInputStream.readObject();
+//
+//            if (mappedByteBuffer == null) {
+//
+//                fileChannel = new RandomAccessFile(PATH + it.next(), "r").getChannel();
+//                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
+//
+//                mappedByteBuffer.mark();
+//
 //            }
 //
-//        } catch (IOException | ClassNotFoundException e) {
+//            while (true) {
+//                while (mappedByteBuffer.hasRemaining()) {
+//                    if (mappedByteBuffer.get() == 30) {
+//                        position = mappedByteBuffer.position();
+//                        mappedByteBuffer.reset();
+//                        byte[] bytes = new byte[position - mark];
+//                        mappedByteBuffer.get(bytes);
+//                        mappedByteBuffer.mark();
+//                        mark = mappedByteBuffer.position();
+//
+////                        long readToMessageStart = System.currentTimeMillis();
+//                        Message message = MessageUtil.read(bytes);
+////                        long readToMessageEnd = System.currentTimeMillis();
+////                        readToMessageTime += readToMessageEnd - readToMessageStart;
+//
+//                        return message;
+//                    }
+//                }
+//                fileChannel.close();
+//
+//                if(it.hasNext()) {
+//                    fileChannel = new RandomAccessFile(PATH + it.next(), "r").getChannel();
+//                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
+//
+//                    mappedByteBuffer.mark();
+//                    mark = 0;
+//                    position = 0;
+//                }else {
+//                    break;
+//                }
+//
+//            }
+//
+//        } catch (IOException e) {
 //            e.printStackTrace();
 //        }
+//
+////        System.out.println("readToMessageTime: " + readToMessageTime);
 //        return null;
 
-
-//        if (buckets.size() == 0 || queue == null) {
-//            return null;
-//        }
-//        //use Round Robin
-//        int checkNum = 0;
-//        while (++checkNum <= bucketList.size()) {
-//            String bucket = bucketList.get((++lastIndex) % (bucketList.size()));
-//            Message message = null;
-//            int index = messIdx.getOrDefault(bucket,0);
-//            try {
-//                message = messageStore.pullMessage(bucket,index);
-//                messIdx.put(bucket,index+1);
-//            } catch (IOException e) {
-//                throw new ClientOMSException(String.format("Bucket:%s poll occurs an io exception", bucket));
-//            } catch (ClassNotFoundException e) {
-//                throw new ClientOMSException(String.format("Bucket:%s poll occurs a classNotFoundException exception", bucket));
-//            }
-//            if (message != null) {
-//                return message;
-//            }
-//        }
-//        return null;
     }
 
     public boolean read() {
 
         //读到cache
-//        try {
-//            if(cached != 0 && cached < randomAccessFile.length()){
-//                if(cached < randomAccessFile.length() - CACHE_SIZE){
-//                    int p = CACHE_SIZE;
-//                    randomAccessFile.skipBytes(p);
-//                    while (randomAccessFile.read()!=30){
-//                        p++;
-//                    }
-//                    cache = new byte[p];
-//                    randomAccessFile.seek(cached);
-//                    randomAccessFile.read(cache);
-//                    cached += p;
-//                    return true;
-//                }
-//
-//                cache = new byte[(int) (randomAccessFile.length() - cached)];
-//                randomAccessFile.seek(cached);
-//                randomAccessFile.read(cache);
-//                cached = (int) randomAccessFile.length();
-//                return true;
-//            }
-//
-//            if (it.hasNext()) {
-//                //mappedByteBuffer读
-////                fileChannel = new RandomAccessFile(PATH + it.next(), "r").getChannel();
-////                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
-////                cache = new byte[(int) fileChannel.size()];
-////                mappedByteBuffer.get(cache);
-//
-//                //RandomAccessFile读
-////                randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
-////                cache = new byte[(int) randomAccessFile.length()];
-////                randomAccessFile.read(cache);
-////                randomAccessFile.close();
-////                return true;
-//
-//                //先读到一定量的cache
-//                cached = 0;
+        try {
+            if(cached != 0 && cached < randomAccessFile.length()){
+                if(cached < randomAccessFile.length() - CACHE_SIZE){
+                    cache = new byte[CACHE_SIZE + 1024];
+                    randomAccessFile.read(cache,0,CACHE_SIZE);
+                    int p = CACHE_SIZE;
+                    int b;
+                    while((b = randomAccessFile.read()) != 30){
+                        cache[p++] = (byte) b;
+                    }
+                    cache[p++] = (byte) b;
+                    cached += p;
+                    return true;
+                }
+
+                cache = new byte[(int) (randomAccessFile.length() - cached)];
+                randomAccessFile.read(cache);
+                cached = (int) randomAccessFile.length();
+                return true;
+            }
+
+            if (it.hasNext()) {
+                //mappedByteBuffer读
+//                fileChannel = new RandomAccessFile(PATH + it.next(), "r").getChannel();
+//                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
+//                cache = new byte[(int) fileChannel.size()];
+//                mappedByteBuffer.get(cache);
+
+                //RandomAccessFile读
 //                randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
-//
-//                int p = CACHE_SIZE;
-//                randomAccessFile.skipBytes(p);
-//                int n = -1;
-//                while ((n = randomAccessFile.read())!=30){
-//                    p++;
-//                }
-//                cache = new byte[p];
-//                randomAccessFile.seek(cached);
+//                cache = new byte[(int) randomAccessFile.length()];
 //                randomAccessFile.read(cache);
-//                cached += p;
-//
+//                randomAccessFile.close();
 //                return true;
-//            }
-//        }catch (IOException e){
-//            e.printStackTrace();
-//        }
-//
-//        return false;
+
+                //先读到一定量的cache
+                cached = 0;
+                randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
+                cache = new byte[CACHE_SIZE + 1024];
+                randomAccessFile.read(cache,0,CACHE_SIZE);
+                int p = CACHE_SIZE;
+                int b;
+                while((b = randomAccessFile.read()) != 30){
+                    cache[p++] = (byte) b;
+                }
+                cache[p++] = (byte) b;
+                cached += p;
+                return true;
+            }
+        }catch (IOException e){
+            e.printStackTrace();
+        }
+
+        return false;
 
 
 
@@ -321,7 +271,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //        } catch (IOException e) {
 //            e.printStackTrace();
 //        }
-        return false;
+//        return false;
     }
 
     @Override
@@ -348,8 +298,6 @@ public class DefaultPullConsumer implements PullConsumer {
         queue = queueName;
         bucketList.add(queueName);
         bucketList.addAll(topics);
-//        bucketList.clear();
-//        bucketList.addAll(buckets);
         it = bucketList.iterator();
 
 
@@ -363,7 +311,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //            e.printStackTrace();
 //        }
 
-//        read();
+        read();
 
 
     }
