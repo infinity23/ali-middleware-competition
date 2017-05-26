@@ -11,7 +11,7 @@ import java.nio.channels.FileChannel;
 import java.util.*;
 
 public class DefaultPullConsumer implements PullConsumer {
-    public static final int CACHE_SIZE = 1024 * 1024 * 20;
+    public static final int CACHE_SIZE = 1024 * 1024 * 10;
     public static final int MESS_CACHE = 50000;
     //    private final MessageStore messageStore = MessageStore.getInstance();
     private KeyValue properties;
