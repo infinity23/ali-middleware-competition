@@ -4,6 +4,7 @@ import io.openmessaging.BytesMessage;
 import io.openmessaging.Message;
 
 import java.nio.charset.Charset;
+import java.util.*;
 
 public class MessageUtil {
 
@@ -107,6 +108,31 @@ public class MessageUtil {
 
         return  keyValue;
     }
+
+
+    //HashMap排序
+    public static <K, V extends Comparable<? super V>> Map<K, V>
+    sortByValue( Map<K, V> map )
+    {
+        List<Map.Entry<K, V>> list =
+                new LinkedList<>(map.entrySet());
+        list.sort(Comparator.comparing(o -> (o.getValue())));
+
+        Map<K, V> result = new LinkedHashMap<>();
+        for (Map.Entry<K, V> entry : list)
+        {
+            result.put( entry.getKey(), entry.getValue() );
+        }
+        return result;
+    }
+
+
+
+
+
+
+
+
 
 
 //  //整数到字节数组的转换

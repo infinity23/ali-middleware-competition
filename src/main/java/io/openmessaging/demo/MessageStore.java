@@ -7,8 +7,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -49,6 +48,15 @@ public class MessageStore {
 
 
     private ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+
+
+//    private Map<String, Integer> sortedMap = new HashMap<>(100);
+    private Set<String> bucketSet = new HashSet<>(100);
+
+
+    public void readBucketes(Collection<String> collection){
+
+    }
 
 
     public static MessageStore getInstance(String path) {
@@ -158,6 +166,25 @@ public class MessageStore {
 //        }
 
     }
+
+
+    public void pollMessage(){
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 //    public Message pullMessage(String bucket){
 //        try {

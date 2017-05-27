@@ -175,7 +175,7 @@ public class DefaultPullConsumer implements PullConsumer {
         try {
             if(cached != 0 && cached < randomAccessFile.length()){
                 if(cached < randomAccessFile.length() - CACHE_SIZE){
-                    cache = new byte[CACHE_SIZE + 1024];
+                    cache = new byte[CACHE_SIZE + 1024 * 100];
                     randomAccessFile.read(cache,0,CACHE_SIZE);
                     int p = CACHE_SIZE;
                     int b;
@@ -210,7 +210,7 @@ public class DefaultPullConsumer implements PullConsumer {
                 //先读到一定量的cache
                 cached = 0;
                 randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
-                cache = new byte[CACHE_SIZE + 1024];
+                cache = new byte[CACHE_SIZE + 1024*100];
                 randomAccessFile.read(cache,0,CACHE_SIZE);
                 int p = CACHE_SIZE;
                 int b;
