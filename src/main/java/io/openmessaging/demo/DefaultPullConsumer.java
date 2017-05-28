@@ -163,7 +163,7 @@ public class DefaultPullConsumer implements PullConsumer {
 
         //缓存版,从byte[]读取
 
-        while(position < cache.length  && cache[position] != 0){
+        while(position < cache.length && cache[position] != 0){
 //            //用于非整数倍块大小
 //                if(position%FILE_BLOCK == 0){
 //                    lastPositin = position - 1;
@@ -180,7 +180,7 @@ public class DefaultPullConsumer implements PullConsumer {
         if(read()){
             position = 0;
             lastPositin = -1;
-            while(position < cache.length && cache[position] != 0){
+            while(position < cache.length){
                 if(cache[position] == 30){
                     byte[] bytes = new byte[position - lastPositin];
                     System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
