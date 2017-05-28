@@ -163,11 +163,11 @@ public class DefaultPullConsumer implements PullConsumer {
 
         //缓存版,从byte[]读取
 
-        while(position < cache.length){
-            //用于非整数倍块大小
-                if(position%FILE_BLOCK == 0){
-                    lastPositin = position - 1;
-                }
+        while(position < cache.length  && cache[position] != 0){
+//            //用于非整数倍块大小
+//                if(position%FILE_BLOCK == 0){
+//                    lastPositin = position - 1;
+//                }
             if(cache[position] == 30){
                 byte[] bytes = new byte[position - lastPositin];
                 System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
@@ -180,7 +180,7 @@ public class DefaultPullConsumer implements PullConsumer {
         if(read()){
             position = 0;
             lastPositin = -1;
-            while(position < cache.length){
+            while(position < cache.length && cache[position] != 0){
                 if(cache[position] == 30){
                     byte[] bytes = new byte[position - lastPositin];
                     System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
@@ -250,51 +250,51 @@ public class DefaultPullConsumer implements PullConsumer {
     private boolean read() {
 
 ////        RAF分段读到cache
-//        try {
-//            if (cached != 0 && cached < randomAccessFile.length()){
-//                if (cached < randomAccessFile.length() - FILE_BLOCK) {
-//                    cache = new byte[FILE_BLOCK];
-//                    randomAccessFile.read(cache);
-//                    cached += FILE_BLOCK;
-//                    return true;
-//                }
-//
-//                cache = new byte[(int) (randomAccessFile.length() - cached)];
-//                randomAccessFile.read(cache);
-//                cached = (int) randomAccessFile.length();
-//                return true;
-//            }
-//
-//            if (it.hasNext()) {
-//                cached = 0;
-//                randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
-//                cache = new byte[FILE_BLOCK];
-//                randomAccessFile.read(cache);
-//                cached += FILE_BLOCK;
-//
-//                return true;
-//            }
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//
-//        return false;
+        try {
+            if (cached != 0 && cached < randomAccessFile.length()){
+                if (cached < randomAccessFile.length() - FILE_BLOCK) {
+                    cache = new byte[FILE_BLOCK];
+                    randomAccessFile.read(cache);
+                    cached += FILE_BLOCK;
+                    return true;
+                }
 
-        //RAF一次读一个bucket
-        try{
-            if(it.hasNext()){
-                RandomAccessFile randomAccessFile = new RandomAccessFile(PATH + it.next(),"r");
-                cache = new byte[(int) randomAccessFile.length()];
+                cache = new byte[(int) (randomAccessFile.length() - cached)];
                 randomAccessFile.read(cache);
-                randomAccessFile.close();
+                cached = (int) randomAccessFile.length();
                 return true;
             }
 
-        }catch (IOException e){
+            if (it.hasNext()) {
+                cached = 0;
+                randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
+                cache = new byte[FILE_BLOCK];
+                randomAccessFile.read(cache);
+                cached += FILE_BLOCK;
+
+                return true;
+            }
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
         return false;
+
+        //RAF一次读一个bucket
+//        try{
+//            if(it.hasNext()){
+//                RandomAccessFile randomAccessFile = new RandomAccessFile(PATH + it.next(),"r");
+//                cache = new byte[(int) randomAccessFile.length()];
+//                randomAccessFile.read(cache);
+//                randomAccessFile.close();
+//                return true;
+//            }
+//
+//        }catch (IOException e){
+//            e.printStackTrace();
+//        }
+//
+//        return false;
 
 
 //        mmp分段读
