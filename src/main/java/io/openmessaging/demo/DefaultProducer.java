@@ -16,7 +16,7 @@ import java.util.concurrent.Executors;
 public class DefaultProducer implements Producer {
     public static final int MESS_MAX = 10000;
     public static final int BUCKET_SIZE = 1024 * 1024 * 100;
-    private static final int CACHE_SIZE = 1024 * 1024 * 10;
+    private static final int CACHE_SIZE = 1024 * 1024 * 5                                                                                                                                                                                                                                                                                                                                        ;
     //    private static final long SLEEP_TIME = 10;
     private MessageFactory messageFactory = new DefaultMessageFactory();
     private MessageStore messageStore;

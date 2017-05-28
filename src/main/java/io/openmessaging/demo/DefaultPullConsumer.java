@@ -12,7 +12,7 @@ import java.util.*;
 import java.util.concurrent.CyclicBarrier;
 
 public class DefaultPullConsumer implements PullConsumer {
-    public static final int CACHE_SIZE = 1024 * 1024 * 40;
+    public static final int FILEBLOCK = 1024 * 1024 * 40;
     public static final int MESS_CACHE = 50000;
     private KeyValue properties;
     private String queue;
@@ -81,7 +81,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //        while (true) {
 //            while (mappedByteBuffer.hasRemaining()) {
 //                //用于非整数倍块大小
-////                if(mappedByteBuffer.position()%CACHE_SIZE == 0){
+////                if(mappedByteBuffer.position()%FILEBLOCK == 0){
 ////                    mappedByteBuffer.mark();
 ////                    mark = mappedByteBuffer.position();
 ////                }
@@ -246,17 +246,17 @@ public class DefaultPullConsumer implements PullConsumer {
 ////        读到cache
         try {
             if (cached != 0 && cached < randomAccessFile.length()){
-                if (cached < randomAccessFile.length() - CACHE_SIZE) {
-                    cache = new byte[CACHE_SIZE];
+                if (cached < randomAccessFile.length() - FILEBLOCK) {
+                    cache = new byte[FILEBLOCK];
                     randomAccessFile.read(cache);
-//                    int p = CACHE_SIZE;
+//                    int p = FILEBLOCK;
 //                    int b;
 //                    while ((b = randomAccessFile.read()) != 30) {
 //                        cache[p++] = (byte) b;
 //                    }
 //                    cache[p++] = (byte) b;
 //                    cached += p;
-                    cached += CACHE_SIZE;
+                    cached += FILEBLOCK;
                     return true;
                 }
 
@@ -283,11 +283,11 @@ public class DefaultPullConsumer implements PullConsumer {
                 //先读到一定量的cache
 //                cached = 0;
                 randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
-                cache = new byte[CACHE_SIZE];
+                cache = new byte[FILEBLOCK];
                 randomAccessFile.read(cache);
-                cached += CACHE_SIZE;
+                cached += FILEBLOCK;
 
-//                int p = CACHE_SIZE;
+//                int p = FILEBLOCK;
 //                int b;
 //                while ((b = randomAccessFile.read()) != 30) {
 //                    cache[p++] = (byte) b;
@@ -308,7 +308,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //            if (mappedByteBuffer == null) {
 //                bucket = it.next();
 //                fileChannel = new RandomAccessFile(PATH + bucket, "r").getChannel();
-//                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, CACHE_SIZE);
+//                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, FILEBLOCK);
 //                mappedByteBuffer.load();
 //                mappedByteBuffer.mark();
 //                return true;
@@ -317,12 +317,12 @@ public class DefaultPullConsumer implements PullConsumer {
 ////            positionMap.put(bucket,positionMap.getOrDefault(bucket,0L) + mappedByteBuffer.position());
 ////            long nowPosition = positionMap.get(bucket);
 ////
-//            mPosition += CACHE_SIZE;
+//            mPosition += FILEBLOCK;
 //
 //            //用于大于一个块大小
 ////            if(fileChannel.size() != mPosition) {
-////                if (fileChannel.size() - mPosition > CACHE_SIZE) {
-////                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, mPosition, CACHE_SIZE);
+////                if (fileChannel.size() - mPosition > FILEBLOCK) {
+////                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, mPosition, FILEBLOCK);
 ////                }else {
 ////                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, mPosition, fileChannel.size() - mPosition);
 ////
@@ -334,7 +334,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //
 //            //等于一个块大小
 //            if(fileChannel.size() != mPosition){
-//                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, mPosition, CACHE_SIZE);
+//                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, mPosition, FILEBLOCK);
 //                mappedByteBuffer.load();
 //                mappedByteBuffer.mark();
 //                return true;
@@ -344,7 +344,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //            if (it.hasNext()) {
 //                bucket = it.next();
 //                fileChannel = new RandomAccessFile(PATH + bucket, "r").getChannel();
-//                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, CACHE_SIZE);
+//                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, FILEBLOCK);
 //                mPosition = 0;
 //                mappedByteBuffer.load();
 //                mappedByteBuffer.mark();

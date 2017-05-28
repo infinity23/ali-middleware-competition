@@ -18,7 +18,8 @@ public class MessageStore {
     //    private static final long MAX_MESS_NUM = 1024 * 1024 * 10;
     private static final long MAX_MESS_NUM = 50000;
     private static final long SLEEP_TIME = 10;
-    public static final int CACHE_SIZE = 1024 * 1024 * 10;
+    public static final int CACHE_SIZE = 1024 * 1024 * 5;
+    public static final int FILEBLOCK = 1024 * 1024 * 40;
     private static MessageStore instance;
     //    public static final String PATH = "E:/Major/Open-Messaging/";
     public static String PATH;
@@ -193,7 +194,7 @@ public class MessageStore {
 
 //        messNum.getAndIncrement();
 //        if (!resultData.containsKey(bucket)) {
-//            resultData.put(bucket, ByteBuffer.allocateDirect(CACHE_SIZE));
+//            resultData.put(bucket, ByteBuffer.allocateDirect(FILEBLOCK));
 //        }
 //
 //
@@ -398,7 +399,7 @@ public class MessageStore {
         try {
             for (String bucket : resultData.keySet()) {
                 if (!mappedByteBufferMap.containsKey(bucket)) {
-                    MappedByteBuffer mappedByteBuffer = new RandomAccessFile(PATH + bucket, "rw").getChannel().map(FileChannel.MapMode.READ_WRITE, 0L, 1024 * 1024 * 40);
+                    MappedByteBuffer mappedByteBuffer = new RandomAccessFile(PATH + bucket, "rw").getChannel().map(FileChannel.MapMode.READ_WRITE, 0L, FILEBLOCK);
                     mappedByteBufferMap.put(bucket, mappedByteBuffer);
                 }
                 mappedByteBuffer = mappedByteBufferMap.get(bucket);
@@ -406,7 +407,7 @@ public class MessageStore {
 //                    long lastPosition = position.getOrDefault(bucket, 0L);
 //                    position.put(bucket, lastPosition + mappedByteBuffer.position());
                     FileChannel fileChannel = new RandomAccessFile(PATH + bucket, "rw").getChannel();
-                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, fileChannel.size(), 1024 * 1024 * 40);
+                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, fileChannel.size(), FILEBLOCK);
                     mappedByteBufferMap.put(bucket, mappedByteBuffer);
                 }
 
