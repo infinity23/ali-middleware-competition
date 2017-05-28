@@ -10,6 +10,7 @@ public class Constants {
 //    public final static int PRO_MAX = Integer.valueOf(System.getProperty("pro.max","100000"));
 //    public final static int PRO_MAX = Integer.valueOf(System.getProperty("pro.max","100"));
     public final static int PRO_MAX = Integer.valueOf(System.getProperty("pro.max","4000000"));
+//    public final static int PRO_MAX = Integer.valueOf(System.getProperty("pro.max","2000000"));
     public final static String CON_PRE = System.getProperty("con.pre", "CONSUMER_");
     public final static String TOPIC_PRE = System.getProperty("topic.pre", "TOPIC_");
     public final static String QUEUE_PRE = System.getProperty("topic.pre", "QUEUE_");

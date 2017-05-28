@@ -16,6 +16,7 @@ import java.util.concurrent.Executors;
 public class DefaultProducer implements Producer {
     public static final int MESS_MAX = 10000;
     public static final int BUCKET_SIZE = 1024 * 1024 * 100;
+    private static final int CACHE_SIZE = 1024 * 1024 * 10;
     //    private static final long SLEEP_TIME = 10;
     private MessageFactory messageFactory = new DefaultMessageFactory();
     private MessageStore messageStore;
@@ -30,7 +31,10 @@ public class DefaultProducer implements Producer {
 
     private Map<String, MappedByteBuffer> mappedByteBufferMap = new HashMap<>();
 
+    private Map<String, ByteArrayOutputStream> resultData = new HashMap<>(100);
+
     private int messNum;
+
 
     public DefaultProducer(KeyValue properties) {
         this.properties = properties;
@@ -90,16 +94,16 @@ public class DefaultProducer implements Producer {
         String bucket = topic == null ? queue : topic;
 
 //        RandomAccessFile版
-        if (!resultMap.containsKey(bucket)) {
-            resultMap.put(bucket, new LinkedList<>());
-        }
-
-        resultMap.get(bucket).add(message);
-        messNum++;
-
-        if (messNum > MESS_MAX) {
-            flush();
-        }
+//        if (!resultMap.containsKey(bucket)) {
+//            resultMap.put(bucket, new LinkedList<>());
+//        }
+//
+//        resultMap.get(bucket).add(message);
+//        messNum++;
+//
+//        if (messNum > MESS_MAX) {
+//            flush();
+//        }
 
 
         //MappedByteBuffer版
@@ -108,23 +112,39 @@ public class DefaultProducer implements Producer {
 //
 //            byte[] bytes = MessageUtil.write(message);
 //
-//            synchronized (MessageStore.class) {
-//                if (!mappedByteBufferMap.containsKey(bucket)) {
-//                    mappedByteBufferMap.put(bucket,
-//                            new RandomAccessFile(PATH + bucket, "rw")
-//                                    .getChannel().map(FileChannel.MapMode.READ_WRITE, 0, BUCKET_SIZE));
-//                }
-//                MappedByteBuffer mappedByteBuffer = mappedByteBufferMap.get(bucket);
-//                mappedByteBuffer.put(bytes);
+//            if (!mappedByteBufferMap.containsKey(bucket)) {
+//                mappedByteBufferMap.put(bucket,
+//                        new RandomAccessFile(PATH + bucket, "rw")
+//                                .getChannel().map(FileChannel.MapMode.READ_WRITE, 0, BUCKET_SIZE));
 //            }
+//            MappedByteBuffer mappedByteBuffer = mappedByteBufferMap.get(bucket);
+//            mappedByteBuffer.put(bytes);
 //
 //        } catch (IOException e) {
 //            e.printStackTrace();
 //        }
-
+//
 
         //交到messagestore统一处理
 //        messageStore.putMessage(topic != null ? topic : queue, message);
+
+
+
+        //缓存数据再交ms
+        if (!resultData.containsKey(bucket)) {
+            resultData.put(bucket, new ByteArrayOutputStream(CACHE_SIZE));
+        }
+        byte[] bytes = MessageUtil.write(message);
+        ByteArrayOutputStream byteArrayOutputStream = resultData.get(bucket);
+        if(CACHE_SIZE - byteArrayOutputStream.size() < bytes.length){
+            messageStore.flush(resultData);
+        }
+        try {
+            byteArrayOutputStream.write(bytes);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     @Override
@@ -165,35 +185,34 @@ public class DefaultProducer implements Producer {
     //用于被kill之前刷新到硬盘
     @Override
     public void flush() {
-//        messageStore.flush();
+        messageStore.flush(resultData);
 //        System.out.println("刷新到硬盘");
 //        long start = System.currentTimeMillis();
         //原版
-        try {
-            for (String key : resultMap.keySet()) {
-                if (!randomAccessFileMap.containsKey(key)) {
-                    randomAccessFileMap.put(key, new RandomAccessFile(PATH + key, "rw"));
-                }
-                RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
-
-                while (!resultMap.get(key).isEmpty()) {
-                    Message message = resultMap.get(key).poll();
-                    byte[] bytes = MessageUtil.write(message);
-                    byteArrayOutputStream.write(bytes);
-                    message = null;
-                }
-                synchronized (MessageStore.class) {
-                    randomAccessFile.skipBytes((int) ((long) position.getOrDefault(key, 0L)));
-                    randomAccessFile.write(byteArrayOutputStream.toByteArray());
-                    position.put(key, randomAccessFile.length());
-                }
-                byteArrayOutputStream.reset();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        messNum = 0;
-
+//        try {
+//            for (String key : resultMap.keySet()) {
+//                if (!randomAccessFileMap.containsKey(key)) {
+//                    randomAccessFileMap.put(key, new RandomAccessFile(PATH + key, "rw"));
+//                }
+//                RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
+//
+//                while (!resultMap.get(key).isEmpty()) {
+//                    Message message = resultMap.get(key).poll();
+//                    byte[] bytes = MessageUtil.write(message);
+//                    byteArrayOutputStream.write(bytes);
+//                    message = null;
+//                }
+//                synchronized (MessageStore.class) {
+//                    randomAccessFile.skipBytes((int) ((long) position.getOrDefault(key, 0L)));
+//                    randomAccessFile.write(byteArrayOutputStream.toByteArray());
+//                    position.put(key, randomAccessFile.length());
+//                }
+//                byteArrayOutputStream.reset();
+//            }
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//        messNum = 0;
 
 
         //修改版
