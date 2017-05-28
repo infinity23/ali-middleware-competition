@@ -4,32 +4,25 @@ import io.openmessaging.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.MappedByteBuffer;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class DefaultProducer implements Producer {
     public static final int MESS_MAX = 10000;
     public static final int BUCKET_SIZE = 1024 * 1024 * 100;
-    private static final int CACHE_SIZE = 1024 * 1024 * 1                                                                                                                                                                                                                                                                                                                                        ;
+    private static final int CACHE_SIZE = 1024 * 1024 * 2                                                                                                                                                                                                                                                                                                                                        ;
     //    private static final long SLEEP_TIME = 10;
     private MessageFactory messageFactory = new DefaultMessageFactory();
     private MessageStore messageStore;
-    private Map<String, LinkedList<Message>> resultMap = new HashMap<>(100);
-    private static Map<String, Long> position = new ConcurrentHashMap<>(100);
-    private Map<String, RandomAccessFile> randomAccessFileMap = new HashMap<>(100);
+//    private Map<String, LinkedList<Message>> resultMap = new HashMap<>(100);
+//    private static Map<String, Long> position = new ConcurrentHashMap<>(100);
+//    private Map<String, RandomAccessFile> randomAccessFileMap = new HashMap<>(100);
     private static String PATH;
-    private static ExecutorService executorService = Executors.newCachedThreadPool();
 
     private KeyValue properties;
-    private ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-
-    private Map<String, MappedByteBuffer> mappedByteBufferMap = new HashMap<>();
+//    private ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+//
+//    private Map<String, MappedByteBuffer> mappedByteBufferMap = new HashMap<>();
 
     private Map<String, ByteArrayOutputStream> resultData = new HashMap<>(100);
 

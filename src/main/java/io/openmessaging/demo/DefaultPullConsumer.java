@@ -8,11 +8,14 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.*;
-import java.util.concurrent.CyclicBarrier;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
 
 public class DefaultPullConsumer implements PullConsumer {
-    public static final int FILEBLOCK = 1024 * 1024 * 40;
+    private static final int FILE_BLOCK = 1024 * 1024 * 40;
+    private static final int APPEND_BLOCK = 1024 * 1024 * 10;
     public static final int MESS_CACHE = 50000;
     private KeyValue properties;
     private String queue;
@@ -37,9 +40,9 @@ public class DefaultPullConsumer implements PullConsumer {
 
     private MessageStore messageStore;
 
-    private ArrayList<Message> messList;
-    private ArrayList<byte[]> bytesList = new ArrayList<>();
-    private String bucket;
+//    private ArrayList<Message> messList;
+//    private ArrayList<byte[]> bytesList = new ArrayList<>();
+//    private String bucket;
 
     private RandomAccessFile randomAccessFile;
 
@@ -49,14 +52,14 @@ public class DefaultPullConsumer implements PullConsumer {
 
     private int cached;
 
-    private CyclicBarrier cyclicBarrier;
-    private boolean done;
-    private Map<String, Long> positionMap = new HashMap<>(100);
-    private long mPosition;
-
-    public void setCyclicBarrier(CyclicBarrier cyclicBarrier) {
-        this.cyclicBarrier = cyclicBarrier;
-    }
+//    private CyclicBarrier cyclicBarrier;
+//    private boolean done;
+//    private Map<String, Long> positionMap = new HashMap<>(100);
+//    private long mPosition;
+//
+//    public void setCyclicBarrier(CyclicBarrier cyclicBarrier) {
+//        this.cyclicBarrier = cyclicBarrier;
+//    }
 
     public DefaultPullConsumer(KeyValue properties) {
         this.properties = properties;
@@ -81,7 +84,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //        while (true) {
 //            while (mappedByteBuffer.hasRemaining()) {
 //                //用于非整数倍块大小
-////                if(mappedByteBuffer.position()%FILEBLOCK == 0){
+////                if(mappedByteBuffer.position()%FILE_BLOCK == 0){
 ////                    mappedByteBuffer.mark();
 ////                    mark = mappedByteBuffer.position();
 ////                }
@@ -158,9 +161,13 @@ public class DefaultPullConsumer implements PullConsumer {
 //        return null;
 
 
-        //缓存版，先读到一个byte[]
+        //缓存版,从byte[]读取
 
         while(position < cache.length){
+            //用于非整数倍块大小
+                if(position%FILE_BLOCK == 0){
+                    lastPositin = position - 1;
+                }
             if(cache[position] == 30){
                 byte[] bytes = new byte[position - lastPositin];
                 System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
@@ -173,7 +180,7 @@ public class DefaultPullConsumer implements PullConsumer {
         if(read()){
             position = 0;
             lastPositin = -1;
-            while(position < cache.length && cache[position] != 0){
+            while(position < cache.length){
                 if(cache[position] == 30){
                     byte[] bytes = new byte[position - lastPositin];
                     System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
@@ -242,61 +249,48 @@ public class DefaultPullConsumer implements PullConsumer {
 
     private boolean read() {
 
-//        int head;
-////        读到cache
-        try {
-            if (cached != 0 && cached < randomAccessFile.length()){
-                if (cached < randomAccessFile.length() - FILEBLOCK) {
-                    cache = new byte[FILEBLOCK];
-                    randomAccessFile.read(cache);
-//                    int p = FILEBLOCK;
-//                    int b;
-//                    while ((b = randomAccessFile.read()) != 30) {
-//                        cache[p++] = (byte) b;
-//                    }
-//                    cache[p++] = (byte) b;
-//                    cached += p;
-                    cached += FILEBLOCK;
-                    return true;
-                }
-
-                cache = new byte[(int) (randomAccessFile.length() - cached)];
-                randomAccessFile.read(cache);
-                cached = (int) randomAccessFile.length();
-                return true;
-            }
-
-            if (it.hasNext()) {
-                //mappedByteBuffer读
-//                fileChannel = new RandomAccessFile(PATH + it.next(), "r").getChannel();
-//                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
-//                cache = new byte[(int) fileChannel.size()];
-//                mappedByteBuffer.get(cache);
-
-                //RandomAccessFile读
-//                randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
-//                cache = new byte[(int) randomAccessFile.length()];
-//                randomAccessFile.read(cache);
-//                randomAccessFile.close();
-//                return true;
-
-                //先读到一定量的cache
-//                cached = 0;
-                randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
-                cache = new byte[FILEBLOCK];
-                randomAccessFile.read(cache);
-                cached += FILEBLOCK;
-
-//                int p = FILEBLOCK;
-//                int b;
-//                while ((b = randomAccessFile.read()) != 30) {
-//                    cache[p++] = (byte) b;
+////        RAF分段读到cache
+//        try {
+//            if (cached != 0 && cached < randomAccessFile.length()){
+//                if (cached < randomAccessFile.length() - FILE_BLOCK) {
+//                    cache = new byte[FILE_BLOCK];
+//                    randomAccessFile.read(cache);
+//                    cached += FILE_BLOCK;
+//                    return true;
 //                }
-//                cache[p++] = (byte) b;
-//                cached += p;
+//
+//                cache = new byte[(int) (randomAccessFile.length() - cached)];
+//                randomAccessFile.read(cache);
+//                cached = (int) randomAccessFile.length();
+//                return true;
+//            }
+//
+//            if (it.hasNext()) {
+//                cached = 0;
+//                randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
+//                cache = new byte[FILE_BLOCK];
+//                randomAccessFile.read(cache);
+//                cached += FILE_BLOCK;
+//
+//                return true;
+//            }
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//
+//        return false;
+
+        //RAF一次读一个bucket
+        try{
+            if(it.hasNext()){
+                RandomAccessFile randomAccessFile = new RandomAccessFile(PATH + it.next(),"r");
+                cache = new byte[(int) randomAccessFile.length()];
+                randomAccessFile.read(cache);
+                randomAccessFile.close();
                 return true;
             }
-        } catch (IOException e) {
+
+        }catch (IOException e){
             e.printStackTrace();
         }
 
@@ -308,7 +302,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //            if (mappedByteBuffer == null) {
 //                bucket = it.next();
 //                fileChannel = new RandomAccessFile(PATH + bucket, "r").getChannel();
-//                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, FILEBLOCK);
+//                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, FILE_BLOCK);
 //                mappedByteBuffer.load();
 //                mappedByteBuffer.mark();
 //                return true;
@@ -317,12 +311,12 @@ public class DefaultPullConsumer implements PullConsumer {
 ////            positionMap.put(bucket,positionMap.getOrDefault(bucket,0L) + mappedByteBuffer.position());
 ////            long nowPosition = positionMap.get(bucket);
 ////
-//            mPosition += FILEBLOCK;
+//            mPosition += FILE_BLOCK;
 //
 //            //用于大于一个块大小
 ////            if(fileChannel.size() != mPosition) {
-////                if (fileChannel.size() - mPosition > FILEBLOCK) {
-////                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, mPosition, FILEBLOCK);
+////                if (fileChannel.size() - mPosition > FILE_BLOCK) {
+////                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, mPosition, FILE_BLOCK);
 ////                }else {
 ////                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, mPosition, fileChannel.size() - mPosition);
 ////
@@ -334,7 +328,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //
 //            //等于一个块大小
 //            if(fileChannel.size() != mPosition){
-//                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, mPosition, FILEBLOCK);
+//                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, mPosition, FILE_BLOCK);
 //                mappedByteBuffer.load();
 //                mappedByteBuffer.mark();
 //                return true;
@@ -344,7 +338,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //            if (it.hasNext()) {
 //                bucket = it.next();
 //                fileChannel = new RandomAccessFile(PATH + bucket, "r").getChannel();
-//                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, FILEBLOCK);
+//                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, FILE_BLOCK);
 //                mPosition = 0;
 //                mappedByteBuffer.load();
 //                mappedByteBuffer.mark();

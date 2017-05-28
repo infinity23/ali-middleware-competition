@@ -5,12 +5,11 @@ import io.openmessaging.Message;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class MessageStore {
 
@@ -18,71 +17,68 @@ public class MessageStore {
     //    private static final long MAX_MESS_NUM = 1024 * 1024 * 10;
     private static final long MAX_MESS_NUM = 50000;
     private static final long SLEEP_TIME = 10;
-    public static final int CACHE_SIZE = 1024 * 1024 * 1;
-    public static final int FILEBLOCK = 1024 * 1024 * 40;
+    public static final int CACHE_SIZE = 1024 * 1024 * 2;
+    public static final int FILE_BLOCK = 1024 * 1024 * 40;
+    private static final int APPEND_BLOCK = 1024 * 1024 * 10;
     private static MessageStore instance;
     //    public static final String PATH = "E:/Major/Open-Messaging/";
     public static String PATH;
-    public static final String FILE_NAME = "E:/Major/Open-Messaging/mess.dat";
-    public static final String CONFIG_NAME = "congfig.dat";
     private boolean firstPull = true;
-    private int finishedNum;
     //    private Map<String, Integer> topicMap = new ConcurrentHashMap<>(100);
-    private Map<String, Long> position = new HashMap<>(100);
-    //    private AtomicInteger messNum = new AtomicInteger();
-    private AtomicInteger messNum = new AtomicInteger();
-    private volatile long totalNum;
-    private volatile boolean flushing;
-    private Map<String, RandomAccessFile> randomAccessFileMap = new ConcurrentHashMap<>(100);
-
-    private ExecutorService executorService = Executors.newSingleThreadExecutor();
+//    private Map<String, Long> position = new HashMap<>(100);
+//    private AtomicInteger messNum = new AtomicInteger();
+//    private volatile long totalNum;
+//    private volatile boolean flushing;
+//    private Map<String, RandomAccessFile> randomAccessFileMap = new ConcurrentHashMap<>(100);
+//
+//    private ExecutorService executorService = Executors.newSingleThreadExecutor();
 
 
 //    private Map<String, ObjectOutputStream> objectOutputStreamMap = new ConcurrentHashMap<>(100);
 
-    private Map<String, ByteBuffer> resultData = new ConcurrentHashMap<>(100);
+//    private Map<String, ByteBuffer> resultData = new ConcurrentHashMap<>(100);
+//    private Map<String, ConcurrentLinkedQueue<Message>> resultMap = new ConcurrentHashMap<>(100);
 
-    private Map<String, ConcurrentLinkedQueue<Message>> resultMap = new ConcurrentHashMap<>(100);
     private Map<String, MappedByteBuffer> mappedByteBufferMap = new ConcurrentHashMap<>(100);
 
 
-    private ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+//    private ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
 
     //    private Map<String, Integer> sortedMap = new HashMap<>(100);
-    private Set<String> bucketSet = new CopyOnWriteArraySet<>();
+//    private Set<String> bucketSet = new CopyOnWriteArraySet<>();
 
-    private String bucket;
-    private Iterator<String> it;
+//    private String bucket;
+//    private Iterator<String> it;
     private MappedByteBuffer mappedByteBuffer;
-    private FileChannel fileChannel;
-    private ArrayList<Message> messList = new ArrayList<>();
+//    private FileChannel fileChannel;
+//    private ArrayList<Message> messList = new ArrayList<>();
 
-    private int treadNum;
-    private static CyclicBarrier cyclicBarrier;
-    private boolean done;
+//    private int treadNum;
+//    private static CyclicBarrier cyclicBarrier;
+//    private boolean done;
     private ArrayList<byte[]> bytesList = new ArrayList<>();
-    private byte[] cache;
-    private boolean hasFlush;
-    public boolean isDone() {
-        return done;
-    }
-
-    public byte[] getCache() {
-        return cache;
-    }
+//    private byte[] cache;
+//    private boolean hasFlush;
+//    public boolean isDone() {
+//        return done;
+//    }
+//
+//    public byte[] getCache() {
+//        return cache;
+//    }
 
     //    public ArrayList<Message> getMessList() {
 //        return messList;
 //    }
-
-    public ArrayList<byte[]> getBytesList() {
-        return bytesList;
-    }
-
-    public String getBucket() {
-        return bucket;
-    }
+//
+//    public ArrayList<byte[]> getBytesList() {
+//        return bytesList;
+//    }
+//
+//    public String getBucket() {
+//        return bucket;
+//    }
 
 //    public void setBucket(Collection<String> collection){
 //        bucketSet.addAll(collection);
@@ -194,7 +190,7 @@ public class MessageStore {
 
 //        messNum.getAndIncrement();
 //        if (!resultData.containsKey(bucket)) {
-//            resultData.put(bucket, ByteBuffer.allocateDirect(FILEBLOCK));
+//            resultData.put(bucket, ByteBuffer.allocateDirect(FILE_BLOCK));
 //        }
 //
 //
@@ -239,54 +235,54 @@ public class MessageStore {
     }
 
 
-    public synchronized boolean read(String bucket ,long position) {
-
-
-//        try {
-//            if(it.hasNext()) {
-//                bucket = it.next();
-//                fileChannel = new RandomAccessFile(PATH + bucket, "r").getChannel();
-//                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
-////                mappedByteBuffer.load();
-////                mappedByteBuffer.mark();
-//
-//                int position = 0;
-//                int mark = 0;
-//
-//                //读到cache
-//                cache = new byte[(int) fileChannel.size()];
-//                mappedByteBuffer.get(cache);
+//    public synchronized boolean read(String bucket ,long position) {
 //
 //
-//                //读到messList
-////                while (mappedByteBuffer.hasRemaining()) {
-////                    if (mappedByteBuffer.get() == 30) {
-////                        position = mappedByteBuffer.position();
-////                        mappedByteBuffer.reset();
-////                        byte[] bytes = new byte[position - mark];
-////                        mappedByteBuffer.get(bytes);
-////                        mappedByteBuffer.mark();
-////                        mark = mappedByteBuffer.position();
-////                        messList.add(MessageUtil.read(bytes));
-////                    }
+////        try {
+////            if(it.hasNext()) {
+////                bucket = it.next();
+////                fileChannel = new RandomAccessFile(PATH + bucket, "r").getChannel();
+////                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, 0, fileChannel.size());
+//////                mappedByteBuffer.load();
+//////                mappedByteBuffer.mark();
 ////
-////                }
+////                int position = 0;
+////                int mark = 0;
+////
+////                //读到cache
+////                cache = new byte[(int) fileChannel.size()];
+////                mappedByteBuffer.get(cache);
+////
+////
+////                //读到messList
+//////                while (mappedByteBuffer.hasRemaining()) {
+//////                    if (mappedByteBuffer.get() == 30) {
+//////                        position = mappedByteBuffer.position();
+//////                        mappedByteBuffer.reset();
+//////                        byte[] bytes = new byte[position - mark];
+//////                        mappedByteBuffer.get(bytes);
+//////                        mappedByteBuffer.mark();
+//////                        mark = mappedByteBuffer.position();
+//////                        messList.add(MessageUtil.read(bytes));
+//////                    }
+//////
+//////                }
+////
+////                fileChannel.close();
+////                ((DirectBuffer)mappedByteBuffer).cleaner().clean();
+////                mappedByteBuffer = null;
+////                return true;
+////
+////            }
+////        } catch (IOException e) {
+////            e.printStackTrace();
+////        }
+////        return false;
 //
-//                fileChannel.close();
-//                ((DirectBuffer)mappedByteBuffer).cleaner().clean();
-//                mappedByteBuffer = null;
-//                return true;
 //
-//            }
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//        return false;
-
-
-
-        return  false;
-    }
+//
+//        return  false;
+//    }
 //
 
 
@@ -399,21 +395,18 @@ public class MessageStore {
         try {
             for (String bucket : resultData.keySet()) {
                 if (!mappedByteBufferMap.containsKey(bucket)) {
-                    MappedByteBuffer mappedByteBuffer = new RandomAccessFile(PATH + bucket, "rw").getChannel().map(FileChannel.MapMode.READ_WRITE, 0L, FILEBLOCK);
+                    MappedByteBuffer mappedByteBuffer = new RandomAccessFile(PATH + bucket, "rw").getChannel().map(FileChannel.MapMode.READ_WRITE, 0L, FILE_BLOCK);
                     mappedByteBufferMap.put(bucket, mappedByteBuffer);
                 }
                 mappedByteBuffer = mappedByteBufferMap.get(bucket);
                 if ((mappedByteBuffer.capacity() - mappedByteBuffer.position()) < CACHE_SIZE) {
-//                    long lastPosition = position.getOrDefault(bucket, 0L);
-//                    position.put(bucket, lastPosition + mappedByteBuffer.position());
                     FileChannel fileChannel = new RandomAccessFile(PATH + bucket, "rw").getChannel();
-                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, fileChannel.size(), FILEBLOCK);
+                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, fileChannel.size(), FILE_BLOCK);
                     mappedByteBufferMap.put(bucket, mappedByteBuffer);
                 }
 
                 ByteArrayOutputStream byteArrayOutputStream = resultData.get(bucket);
                 mappedByteBuffer.put(byteArrayOutputStream.toByteArray());
-//                mappedByteBuffer.force();
                 byteArrayOutputStream.reset();
             }
 
