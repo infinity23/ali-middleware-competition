@@ -13,7 +13,7 @@ public class DefaultProducer implements Producer {
     public static final int MESS_MAX = 10000;
     public static final int BUCKET_SIZE = 1024 * 1024 * 100;
 //    private static final int CACHE_SIZE = 1024 * 1024 * 2                                                                                                                                                                                                                                                                                                                                        ;
-    private static final int CACHE_SIZE = 1024 * 512 * (random.nextInt(6) + 1);
+    private static final int CACHE_SIZE = 1024 * 512 * (random.nextInt(4) + 1);
     //    private static final long SLEEP_TIME = 10;
     private MessageFactory messageFactory = new DefaultMessageFactory();
     private MessageStore messageStore;
@@ -80,12 +80,12 @@ public class DefaultProducer implements Producer {
 
     @Override
     public void send(Message message) {
-        if (message == null) throw new ClientOMSException("Message should not be null");
+//        if (message == null) throw new ClientOMSException("Message should not be null");
         String topic = message.headers().getString(MessageHeader.TOPIC);
         String queue = message.headers().getString(MessageHeader.QUEUE);
-        if ((topic == null && queue == null) || (topic != null && queue != null)) {
-            throw new ClientOMSException(String.format("Queue:%s Topic:%s should put one and only one", queue, topic));
-        }
+//        if ((topic == null && queue == null) || (topic != null && queue != null)) {
+//            throw new ClientOMSException(String.format("Queue:%s Topic:%s should put one and only one", queue, topic));
+//        }
 
         String bucket = topic == null ? queue : topic;
 

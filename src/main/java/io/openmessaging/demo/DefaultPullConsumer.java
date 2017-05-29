@@ -49,6 +49,7 @@ public class DefaultPullConsumer implements PullConsumer {
     private int n;
 
     private byte[] cache;
+    private byte[] cache2;
 
     private int cached;
 
@@ -164,7 +165,7 @@ public class DefaultPullConsumer implements PullConsumer {
         //缓存版,从byte[]读取
 
         while(position < cache.length && cache[position] != 0){
-//            //用于非整数倍块大小
+//            //用于非一块大小
 //                if(position%FILE_BLOCK == 0){
 //                    lastPositin = position - 1;
 //                }
@@ -280,6 +281,17 @@ public class DefaultPullConsumer implements PullConsumer {
 
         return false;
 
+        //一次读多个文件
+
+
+
+
+
+
+
+
+
+
         //RAF一次读一个bucket
 //        try{
 //            if(it.hasNext()){
@@ -386,9 +398,9 @@ public class DefaultPullConsumer implements PullConsumer {
     //只能绑定一个queue和多个topics
     @Override
     public void attachQueue(String queueName, Collection<String> topics) {
-        if (queue != null && !queue.equals(queueName)) {
-            throw new ClientOMSException("You have already attached to a queue " + queue);
-        }
+//        if (queue != null && !queue.equals(queueName)) {
+//            throw new ClientOMSException("You have already attached to a queue " + queue);
+//        }
         queue = queueName;
         bucketList.add(queueName);
         bucketList.addAll(topics);
