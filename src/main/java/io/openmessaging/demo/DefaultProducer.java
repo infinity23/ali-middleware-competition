@@ -12,8 +12,8 @@ public class DefaultProducer implements Producer {
     private static Random random = new Random(System.currentTimeMillis());
     public static final int MESS_MAX = 10000;
     public static final int BUCKET_SIZE = 1024 * 1024 * 100;
-    private static final int CACHE_SIZE = 1024 * 1024 * 2                                                                                                                                                                                                                                                                                                                                        ;
-//    private static final int CACHE_SIZE = 1024 * 512 * (random.nextInt(4) + 1);
+//    private static final int CACHE_SIZE = 1024 * 1024 * 2                                                                                                                                                                                                                                                                                                                                        ;
+    private static final int CACHE_SIZE = 1024 * 512 * (random.nextInt(4) + 1);
     //    private static final long SLEEP_TIME = 10;
     private MessageFactory messageFactory = new DefaultMessageFactory();
     private MessageStore messageStore;

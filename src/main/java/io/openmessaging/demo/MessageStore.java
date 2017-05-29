@@ -256,7 +256,7 @@ public class MessageStore {
 ////
 ////                //读到messList
 //////                while (mappedByteBuffer.hasRemaining()) {
-//////                    if (mappedByteBuffer.get() == 30) {
+//////                    if (mappedByteBuffer.get() == 29) {
 //////                        position = mappedByteBuffer.position();
 //////                        mappedByteBuffer.reset();
 //////                        byte[] bytes = new byte[position - mark];
@@ -296,7 +296,7 @@ public class MessageStore {
 //            MappedByteBuffer mappedByteBuffer = mappedByteBufferMap.get(bucket);
 //
 //            while (mappedByteBuffer.hasRemaining()) {
-//                if (mappedByteBuffer.get() == 30) {
+//                if (mappedByteBuffer.get() == 29) {
 //                    position = mappedByteBuffer.position();
 //                    mappedByteBuffer.reset();
 //                    byte[] bytes = new byte[position - mark];

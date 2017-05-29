@@ -119,6 +119,11 @@ public class DefaultKeyValue implements KeyValue {
 
     @Override
     public String toString() {
+
         return kvs.toString();
+    }
+
+    protected Map<String, Object> getMap(){
+        return kvs;
     }
 }

@@ -88,7 +88,7 @@ public class DefaultPullConsumer implements PullConsumer {
 ////                    mappedByteBuffer.mark();
 ////                    mark = mappedByteBuffer.position();
 ////                }
-//                if (mappedByteBuffer.get() == 30) {
+//                if (mappedByteBuffer.get() == 29) {
 //                    position = mappedByteBuffer.position();
 //                    mappedByteBuffer.reset();
 //                    byte[] bytes = new byte[position - mark];
@@ -124,7 +124,7 @@ public class DefaultPullConsumer implements PullConsumer {
 ////                messList = messageStore.getMessList();
 //                cache = messageStore.getCache();
 //                while (position < cache.length) {
-//                    if (cache[position] == 30) {
+//                    if (cache[position] == 29) {
 //                        byte[] bytes = new byte[position - lastPositin];
 //                        System.arraycopy(cache, lastPositin + 1, bytes, 0, position - lastPositin);
 //                        lastPositin = position++;
@@ -168,7 +168,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //                if(position%FILE_BLOCK == 0){
 //                    lastPositin = position - 1;
 //                }
-            if(cache[position] == 30){
+            if(cache[position] == 29){
                 byte[] bytes = new byte[position - lastPositin];
                 System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
                 lastPositin = position++;
@@ -181,7 +181,7 @@ public class DefaultPullConsumer implements PullConsumer {
             position = 0;
             lastPositin = -1;
             while(position < cache.length){
-                if(cache[position] == 30){
+                if(cache[position] == 29){
                     byte[] bytes = new byte[position - lastPositin];
                     System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
                     lastPositin = position++;
@@ -209,7 +209,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //
 //            while (true) {
 //                while (mappedByteBuffer.hasRemaining()) {
-//                    if (mappedByteBuffer.get() == 30) {
+//                    if (mappedByteBuffer.get() == 29) {
 //                        position = mappedByteBuffer.position();
 //                        mappedByteBuffer.reset();
 //                        byte[] bytes = new byte[position - mark];

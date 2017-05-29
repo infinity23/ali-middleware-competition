@@ -9,44 +9,92 @@ import java.util.*;
 public class MessageUtil {
 
     private static final Charset CHARSET = Charset.forName("US-ASCII");
+    private static final char RS = 31;
+    private static final char US = 30;
+    private static final char GS = 29;
+//    private static final char COM = ',';
+    private static final char EQU = '=';
 
 
-    public static byte[] write(Message message){
+    public static byte[] write(Message message) {
         BytesMessage bytesMessage = (BytesMessage) message;
+        StringBuilder sb = new StringBuilder();
+        DefaultKeyValue header = (DefaultKeyValue) bytesMessage.headers();
+        DefaultKeyValue properties = (DefaultKeyValue) bytesMessage.properties();
 
-            byte[] header = bytesMessage.headers() == null ? new byte[0] : bytesMessage.headers().toString().getBytes(CHARSET);
-            byte[] properties = bytesMessage.properties() == null ? new byte[0] : bytesMessage.properties().toString().getBytes(CHARSET);
+        if(header != null) {
+            for (Map.Entry<String, Object> entry : header.getMap().entrySet()) {
+                sb.append(entry.getKey());
+                sb.append(EQU);
+                sb.append(entry.getValue());
+                sb.append(RS);
+            }
+            sb.delete(sb.length() - 1, sb.length());
+        }
+        sb.append(US);
 
-            byte[] body = bytesMessage.getBody();
-            byte[] bytes = new byte[header.length + properties.length + body.length + 3];
+        if(properties != null) {
+            for (Map.Entry<String, Object> entry : properties.getMap().entrySet()) {
+                sb.append(entry.getKey());
+                sb.append(EQU);
+                sb.append(entry.getValue());
+                sb.append(RS);
+            }
+            sb.delete(sb.length() - 1, sb.length());
+        }
+        sb.append(US);
 
-            System.arraycopy(header,0,bytes,0,header.length);
-            //ASCII 单元分隔符31
-            bytes[header.length] = 31;
+        String s = sb.toString();
+        byte[] pre = s.getBytes(CHARSET);
+        byte[] body = bytesMessage.getBody();
+        byte[] bytes = new byte[pre.length + body.length + 1];
 
-            System.arraycopy(properties,0,bytes,header.length + 1,properties.length);
+        System.arraycopy(pre,0,bytes,0,pre.length);
+        System.arraycopy(body,0,bytes,pre.length,body.length);
+        bytes[bytes.length-1] = GS;
 
-            //ASCII 单元分隔符31
-            bytes[header.length + properties.length + 1] = 31;
-
-            System.arraycopy(body,0,bytes,header.length + properties.length + 2,body.length);
-
-            //ASCII 记录分隔符30
-            bytes[header.length + properties.length + body.length + 2] = 30;
+        return bytes;
 
 
-            return bytes;
+
+
+
+        //未优化版本
+//        byte[] header = bytesMessage.headers() == null ? new byte[0] : bytesMessage.headers().toString().getBytes(CHARSET);
+//        byte[] properties = bytesMessage.properties() == null ? new byte[0] : bytesMessage.properties().toString().getBytes(CHARSET);
+//
+//        byte[] body = bytesMessage.getBody();
+//        byte[] bytes = new byte[header.length + properties.length + body.length + 3];
+//
+//        System.arraycopy(header, 0, bytes, 0, header.length);
+//        //ASCII 单元分隔符31
+//        bytes[header.length] = 31;
+//
+//        System.arraycopy(properties, 0, bytes, header.length + 1, properties.length);
+//
+//        //ASCII 单元分隔符31
+//        bytes[header.length + properties.length + 1] = 31;
+//
+//        System.arraycopy(body, 0, bytes, header.length + properties.length + 2, body.length);
+//
+//        //ASCII 记录分隔符30
+//        bytes[header.length + properties.length + body.length + 2] = 30;
+//
+//
+//        return bytes;
 
     }
 
-    public static Message read(byte[] bytes){
+    public static Message read(byte[] bytes) {
+
+        //未优化版本
         int hp = -1;
         int pp = -1;
         for (int i = 0; i < bytes.length; i++) {
-            if(bytes[i] == 31){
-                if(hp == -1){
+            if (bytes[i] == US) {
+                if (hp == -1) {
                     hp = i;
-                }else {
+                } else {
                     pp = i;
                     break;
                 }
@@ -55,17 +103,17 @@ public class MessageUtil {
 
         byte[] body = new byte[bytes.length - pp - 2];
 
-        System.arraycopy(bytes,pp + 1,body,0,bytes.length - pp - 2);
+        System.arraycopy(bytes, pp + 1, body, 0, bytes.length - pp - 2);
 
         DefaultBytesMessage defaultBytesMessage = new DefaultBytesMessage(body);
 
-        if(hp > 1){
-            String header = new String(bytes,0,hp,CHARSET);
+        if (hp > 1) {
+            String header = new String(bytes, 0, hp, CHARSET);
             defaultBytesMessage.setHeaders(readMap(header));
         }
 
-        if(pp - hp > 1) {
-            String properties = new String(bytes,hp + 1,pp - hp - 1,CHARSET);
+        if (pp - hp > 1) {
+            String properties = new String(bytes, hp + 1, pp - hp - 1, CHARSET);
             defaultBytesMessage.setProperties(readMap(properties));
         }
 
@@ -73,66 +121,48 @@ public class MessageUtil {
 
     }
 
-    private static DefaultKeyValue readMap(String s){
+
+
+    private static DefaultKeyValue readMap(String s) {
         DefaultKeyValue keyValue = new DefaultKeyValue();
-//            s = s.substring(1, s.length() - 1);
-//            String[] ss = s.split(", ");
-//            int index = 0;
-//            for (String s1 : ss) {
-//                index = s1.indexOf("=");
-//                keyValue.put(s1.substring(0, index), s1.substring(index + 1, s1.length()));
-//            }
-//
 
-        char com = ',';
-        char equ = '=';
-        int indexOfCom;
-        int lastIndexOfCom = s.indexOf(com);
-        int indexOfEqu = s.indexOf(equ);
+        int indexOfRS;
+        int lastIndexOfRS = s.indexOf(RS);
+        int indexOfEqu = s.indexOf(EQU);
 
-        if(s.indexOf(com) == -1){
-            keyValue.put(s.substring(1, indexOfEqu), s.substring(indexOfEqu + 1, s.length() - 1));
+        if (lastIndexOfRS == -1) {
+            keyValue.put(s.substring(0, indexOfEqu), s.substring(indexOfEqu + 1, s.length()));
             return keyValue;
         }
 
-        keyValue.put(s.substring(1, indexOfEqu), s.substring(indexOfEqu + 1, lastIndexOfCom));
+        keyValue.put(s.substring(0, indexOfEqu), s.substring(indexOfEqu + 1, lastIndexOfRS));
 
-        while ((indexOfCom = s.indexOf(com, lastIndexOfCom + 1)) != -1){
-            indexOfEqu = s.indexOf(equ, lastIndexOfCom + 1);
-            keyValue.put(s.substring(lastIndexOfCom + 2, indexOfEqu), s.substring(indexOfEqu + 1, indexOfCom));
-            lastIndexOfCom = indexOfCom;
+        while ((indexOfRS = s.indexOf(RS, lastIndexOfRS + 1)) != -1) {
+            indexOfEqu = s.indexOf(EQU, lastIndexOfRS + 1);
+            keyValue.put(s.substring(lastIndexOfRS + 1, indexOfEqu), s.substring(indexOfEqu + 1, indexOfRS));
+            lastIndexOfRS = indexOfRS;
         }
 
-        indexOfEqu = s.indexOf(equ, lastIndexOfCom);
-        keyValue.put(s.substring(lastIndexOfCom + 2, indexOfEqu), s.substring(indexOfEqu + 1, s.length() - 1));
+        indexOfEqu = s.indexOf(EQU, lastIndexOfRS);
+        keyValue.put(s.substring(lastIndexOfRS + 1, indexOfEqu), s.substring(indexOfEqu + 1, s.length()));
 
-        return  keyValue;
+        return keyValue;
     }
 
 
     //HashMap排序
     public static <K, V extends Comparable<? super V>> Map<K, V>
-    sortByValue( Map<K, V> map )
-    {
+    sortByValue(Map<K, V> map) {
         List<Map.Entry<K, V>> list =
                 new LinkedList<>(map.entrySet());
         list.sort(Comparator.comparing(o -> (o.getValue())));
 
         Map<K, V> result = new LinkedHashMap<>();
-        for (Map.Entry<K, V> entry : list)
-        {
-            result.put( entry.getKey(), entry.getValue() );
+        for (Map.Entry<K, V> entry : list) {
+            result.put(entry.getKey(), entry.getValue());
         }
         return result;
     }
-
-
-
-
-
-
-
-
 
 
 //  //整数到字节数组的转换
