@@ -12,7 +12,7 @@ import java.util.*;
 import java.util.concurrent.*;
 
 public class DefaultPullConsumer implements PullConsumer {
-    private static final int FILE_BLOCK = 1024 * 1024 * 50;
+    private static final int FILE_BLOCK = 1024 * 1024 * 40;
     private static final int BYTES_CACHE = FILE_BLOCK * 2;
     private static final int APPEND_BLOCK = 1024 * 1024 * 10;
     public static final int MESS_CACHE = 50000;
@@ -40,7 +40,7 @@ public class DefaultPullConsumer implements PullConsumer {
     private MessageStore messageStore;
 
     private ExecutorService executorService = Executors.newSingleThreadExecutor();
-    private BlockingQueue<byte[]> cacheQueue = new LinkedBlockingQueue<>(2);
+    private BlockingQueue<byte[]> cacheQueue = new LinkedBlockingQueue<>(4);
 
 //    private ArrayList<Message> messList;
 //    private ArrayList<byte[]> bytesList = new ArrayList<>();
