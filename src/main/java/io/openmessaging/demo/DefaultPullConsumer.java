@@ -40,7 +40,7 @@ public class DefaultPullConsumer implements PullConsumer {
     private MessageStore messageStore;
 
     private ExecutorService executorService = Executors.newSingleThreadExecutor();
-    private BlockingQueue<byte[]> cacheQueue = new LinkedBlockingQueue<>(4);
+    private BlockingQueue<byte[]> cacheQueue = new LinkedBlockingQueue<>(2);
 
 //    private ArrayList<Message> messList;
 //    private ArrayList<byte[]> bytesList = new ArrayList<>();
