@@ -8,13 +8,12 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.*;
 
 public class DefaultPullConsumer implements PullConsumer {
     private static final int FILE_BLOCK = 1024 * 1024 * 40;
+    private static final int BYTES_CACHE = FILE_BLOCK * 2;
     private static final int APPEND_BLOCK = 1024 * 1024 * 10;
     public static final int MESS_CACHE = 50000;
     private KeyValue properties;
@@ -25,7 +24,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //
 //    private int lastIndex = 0;
 //    private List<Message> resultList;
-//    private String bucket;
+    private String bucket;
     private Iterator<String> it;
     //    private int finishedNum;
 //    private boolean first;
@@ -40,11 +39,15 @@ public class DefaultPullConsumer implements PullConsumer {
 
     private MessageStore messageStore;
 
+    private ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private BlockingQueue<byte[]> cacheQueue = new LinkedBlockingQueue<>(2);
+
 //    private ArrayList<Message> messList;
 //    private ArrayList<byte[]> bytesList = new ArrayList<>();
 //    private String bucket;
 
     private RandomAccessFile randomAccessFile;
+    private Thread thisThread;
 
     private int n;
 
@@ -56,7 +59,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //    private CyclicBarrier cyclicBarrier;
 //    private boolean done;
 //    private Map<String, Long> positionMap = new HashMap<>(100);
-//    private long mPosition;
+    private long mPosition;
 //
 //    public void setCyclicBarrier(CyclicBarrier cyclicBarrier) {
 //        this.cyclicBarrier = cyclicBarrier;
@@ -66,6 +69,7 @@ public class DefaultPullConsumer implements PullConsumer {
         this.properties = properties;
         PATH = properties.getString("STORE_PATH") + "/";
         messageStore = MessageStore.getInstance(PATH);
+        thisThread = Thread.currentThread();
     }
 
 
@@ -78,8 +82,60 @@ public class DefaultPullConsumer implements PullConsumer {
 
     private int index;
 
+    private byte[] thisCache;
+    private boolean done;
+
     @Override
     public Message poll() {
+
+        //对应RAF分块线程分离
+        while(position < thisCache.length && thisCache[position] != 0){
+//            //用于非一块大小
+//                if(position%FILE_BLOCK == 0){
+//                    lastPositin = position - 1;
+//                }
+            if(thisCache[position] == 29){
+                byte[] bytes = new byte[position - lastPositin];
+                System.arraycopy(thisCache,lastPositin + 1,bytes,0,position - lastPositin);
+                lastPositin = position++;
+                return MessageUtil.read(bytes);
+            }
+            position ++;
+        }
+
+        try {
+            if(!done){
+                thisCache = cacheQueue.take();
+            }else {
+                thisCache = cacheQueue.poll();
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        if(thisCache != null){
+            position = 0;
+            lastPositin = -1;
+            while(position < thisCache.length){
+                if(thisCache[position] == 29){
+                    byte[] bytes = new byte[position - lastPositin];
+                    System.arraycopy(thisCache,lastPositin + 1,bytes,0,position - lastPositin);
+                    lastPositin = position++;
+                    return MessageUtil.read(bytes);
+            }
+            position++;
+            }
+        }
+
+        return null;
+
+
+
+
+
+
+
+
 
         //对应分段mmp
 //        while (true) {
@@ -164,35 +220,35 @@ public class DefaultPullConsumer implements PullConsumer {
 
         //缓存版,从byte[]读取
 
-        while(position < cache.length && cache[position] != 0){
-//            //用于非一块大小
-//                if(position%FILE_BLOCK == 0){
-//                    lastPositin = position - 1;
-//                }
-            if(cache[position] == 29){
-                byte[] bytes = new byte[position - lastPositin];
-                System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
-                lastPositin = position++;
-                return MessageUtil.read(bytes);
-            }
-            position ++;
-        }
-
-        if(read()){
-            position = 0;
-            lastPositin = -1;
-            while(position < cache.length){
-                if(cache[position] == 29){
-                    byte[] bytes = new byte[position - lastPositin];
-                    System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
-                    lastPositin = position++;
-                    return MessageUtil.read(bytes);
-            }
-            position++;
-            }
-        }
-
-        return null;
+//        while(position < cache.length && cache[position] != 0){
+////            //用于非一块大小
+////                if(position%FILE_BLOCK == 0){
+////                    lastPositin = position - 1;
+////                }
+//            if(cache[position] == 29){
+//                byte[] bytes = new byte[position - lastPositin];
+//                System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
+//                lastPositin = position++;
+//                return MessageUtil.read(bytes);
+//            }
+//            position ++;
+//        }
+//
+//        if(read()){
+//            position = 0;
+//            lastPositin = -1;
+//            while(position < cache.length){
+//                if(cache[position] == 29){
+//                    byte[] bytes = new byte[position - lastPositin];
+//                    System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
+//                    lastPositin = position++;
+//                    return MessageUtil.read(bytes);
+//            }
+//            position++;
+//            }
+//        }
+//
+//        return null;
 
 
 //      mmp每次读一个
@@ -281,10 +337,56 @@ public class DefaultPullConsumer implements PullConsumer {
 
         return false;
 
-        //一次读多个文件
+        //RAF读超过一个块大小(未完)
 
-
-
+//        try {
+//            if (cached != 0 && cached < randomAccessFile.length()){
+//                if (cached < randomAccessFile.length() - BYTES_CACHE) {
+//                    cache = new byte[BYTES_CACHE];
+//                    randomAccessFile.read(cache);
+//                    cached += BYTES_CACHE;
+//                    return true;
+//                }
+//
+//                if (it.hasNext()) {
+//                    byte[] temp = new byte[(int) (randomAccessFile.length() - cached)];
+//                    randomAccessFile.read(temp);
+//
+//                    cached = 0;
+//                    randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
+//                    System.arraycopy(temp,0,cache,cached,temp.length);
+//
+//                    byte[] temp2 = new byte[]
+//
+//
+//                    return true;
+//                    cache = new byte[BYTES_CACHE];
+//                    randomAccessFile.read(cache);
+//                    cached += BYTES_CACHE;
+//
+//                    return true;
+//                }
+//
+//                byte[] temp = new byte[(int) (randomAccessFile.length() - cached)];
+//                randomAccessFile.read(temp);
+//                cached = (int) randomAccessFile.length();
+//                return true;
+//            }
+//
+//            if (it.hasNext()) {
+//                cached = 0;
+//                randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
+//                cache = new byte[BYTES_CACHE];
+//                randomAccessFile.read(cache);
+//                cached += BYTES_CACHE;
+//
+//                return true;
+//            }
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//
+//        return false;
 
 
 
@@ -416,8 +518,28 @@ public class DefaultPullConsumer implements PullConsumer {
 //            e.printStackTrace();
 //        }
 
-        read();
+//        read();
 
+        executorService.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while(read()) {
+                        cacheQueue.put(cache);
+                    }
+                    done = true;
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            });
+
+        try {
+            thisCache = cacheQueue.take();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
     }
-}
+
+    }
