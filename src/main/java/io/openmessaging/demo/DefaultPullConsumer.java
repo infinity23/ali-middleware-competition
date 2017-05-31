@@ -41,13 +41,14 @@ public class DefaultPullConsumer implements PullConsumer {
 
     private ExecutorService executorService = Executors.newSingleThreadExecutor();
     private BlockingQueue<byte[]> cacheQueue = new LinkedBlockingQueue<>(2);
+//    private BlockingQueue<byte[]> messQueue = new LinkedBlockingQueue<>(MESS_CACHE);
 
 //    private ArrayList<Message> messList;
 //    private ArrayList<byte[]> bytesList = new ArrayList<>();
 //    private String bucket;
 
     private RandomAccessFile randomAccessFile;
-    private Thread thisThread;
+//    private Thread thisThread;
 
     private int n;
 
@@ -56,7 +57,7 @@ public class DefaultPullConsumer implements PullConsumer {
 
     private int cached;
 
-//    private CyclicBarrier cyclicBarrier;
+    //    private CyclicBarrier cyclicBarrier;
 //    private boolean done;
 //    private Map<String, Long> positionMap = new HashMap<>(100);
     private long mPosition;
@@ -69,7 +70,7 @@ public class DefaultPullConsumer implements PullConsumer {
         this.properties = properties;
         PATH = properties.getString("STORE_PATH") + "/";
         messageStore = MessageStore.getInstance(PATH);
-        thisThread = Thread.currentThread();
+//        thisThread = Thread.currentThread();
     }
 
 
@@ -87,6 +88,16 @@ public class DefaultPullConsumer implements PullConsumer {
 
     @Override
     public Message poll() {
+        //对应MMP线程分离
+//        try {
+//            if(!done) {
+//                return MessageUtil.read(messQueue.take());
+//            }
+//                return MessageUtil.read(messQueue.poll());
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+//        return null;
 
         //对应RAF分块线程分离
         while(position < thisCache.length && thisCache[position] != 0){
@@ -128,13 +139,6 @@ public class DefaultPullConsumer implements PullConsumer {
         }
 
         return null;
-
-
-
-
-
-
-
 
 
         //对应分段mmp
@@ -389,11 +393,6 @@ public class DefaultPullConsumer implements PullConsumer {
 //        return false;
 
 
-
-
-
-
-
         //RAF一次读一个bucket
 //        try{
 //            if(it.hasNext()){
@@ -426,7 +425,6 @@ public class DefaultPullConsumer implements PullConsumer {
 ////            long nowPosition = positionMap.get(bucket);
 ////
 //            mPosition += FILE_BLOCK;
-//
 //            //用于大于一个块大小
 ////            if(fileChannel.size() != mPosition) {
 ////                if (fileChannel.size() - mPosition > FILE_BLOCK) {
@@ -441,7 +439,7 @@ public class DefaultPullConsumer implements PullConsumer {
 ////            }
 //
 //            //等于一个块大小
-//            if(fileChannel.size() != mPosition){
+//            if (fileChannel.size() != mPosition) {
 //                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_ONLY, mPosition, FILE_BLOCK);
 //                mappedByteBuffer.load();
 //                mappedByteBuffer.mark();
@@ -520,19 +518,18 @@ public class DefaultPullConsumer implements PullConsumer {
 
 //        read();
 
-        executorService.execute(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    while(read()) {
-                        cacheQueue.put(cache);
-                    }
-                    done = true;
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+
+        //对应线程分离RAF
+        executorService.execute(() -> {
+            try {
+                while(read()) {
+                    cacheQueue.put(cache);
                 }
+                done = true;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-            });
+        });
 
         try {
             thisCache = cacheQueue.take();
@@ -540,6 +537,46 @@ public class DefaultPullConsumer implements PullConsumer {
             e.printStackTrace();
         }
 
-    }
+
+        //对应MMP线程分离
+//        executorService.execute(new Runnable() {
+//            @Override
+//            public void run() {
+//                read();
+//                while (true) {
+//                    while (mappedByteBuffer.hasRemaining()) {
+//                        //用于非整数倍块大小
+////                if(mappedByteBuffer.position()%FILE_BLOCK == 0){
+////                    mappedByteBuffer.mark();
+////                    mark = mappedByteBuffer.position();
+////                }
+//                        if (mappedByteBuffer.get() == 29) {
+//                            position = mappedByteBuffer.position();
+//                            mappedByteBuffer.reset();
+//                            byte[] bytes = new byte[position - mark];
+//                            mappedByteBuffer.get(bytes);
+//                            mappedByteBuffer.mark();
+//                            mark = position;
+//
+//                            try {
+//                                messQueue.put(bytes);
+//                            } catch (InterruptedException e) {
+//                                e.printStackTrace();
+//                            }
+//                        }
+//                    }
+//
+//                    if (!read()) {
+//                        break;
+//                    }
+//                    mark = 0;
+//                }
+//
+//                done = true;
+//
+//            }
+//        });
 
     }
+
+}
