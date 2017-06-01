@@ -6,14 +6,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 
 public class DefaultProducer implements Producer {
-    private static Random random = new Random(System.currentTimeMillis());
+//    private static Random random = new Random(System.currentTimeMillis());
     public static final int MESS_MAX = 10000;
     public static final int BUCKET_SIZE = 1024 * 1024 * 100;
     private static final int CACHE_SIZE = 1024 * 512                                                                                                                                                                                                                                                                                                                                        ;

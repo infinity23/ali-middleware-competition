@@ -22,7 +22,7 @@ import java.util.zip.Inflater;
 public class DefaultPullConsumer implements PullConsumer {
     //    private static final int FILE_BLOCK = 1024 * 1024 * 40;
     private static final int FILE_BLOCK = 1024 * 1024 * 10;
-    public static final int DEFLATE_BLOCK = FILE_BLOCK / 20;
+    public static final int DEFLATE_BLOCK = FILE_BLOCK / 10;
     private static final int BYTES_CACHE = FILE_BLOCK * 2;
     private static final int APPEND_BLOCK = 1024 * 1024 * 10;
     public static final int MESS_CACHE = 50000;
