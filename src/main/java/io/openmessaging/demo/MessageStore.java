@@ -2,9 +2,8 @@ package io.openmessaging.demo;
 
 import io.openmessaging.Message;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -44,6 +43,7 @@ public class MessageStore {
     private Map<String, RandomAccessFile> randomAccessFileMap = new ConcurrentHashMap<>(100);
     private Map<String, ByteArrayOutputStream> cacheMap = new HashMap<>(100);
     private Deflater deflater = new Deflater(1);
+    private Map<String, ArrayList<Integer>> deflatePosition = new HashMap<>(100);
 
 //    private ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
@@ -492,15 +492,18 @@ public class MessageStore {
     private void writeToFile(String bucket, ByteArrayOutputStream cache) throws IOException {
         if (!randomAccessFileMap.containsKey(bucket)) {
             randomAccessFileMap.put(bucket, new RandomAccessFile(PATH + bucket, "rw"));
+            deflatePosition.put(bucket, new ArrayList<>());
         }
         RandomAccessFile randomAccessFile = randomAccessFileMap.get(bucket);
+        ArrayList<Integer> list = deflatePosition.get(bucket);
 //        MappedByteBuffer mappedByteBuffer = randomAccessFile.getChannel().map(FileChannel.MapMode.READ_WRITE, randomAccessFile.length(), DEFLATE_BLOCK);
-        byte[] deflateBuf = new byte[DEFLATE_BLOCK];
+        byte[] deflateBuf = new byte[FILE_BLOCK];
         deflater.setInput(cache.toByteArray());
         deflater.finish();
         int deflateSize = deflater.deflate(deflateBuf);
         deflater.reset();
-        randomAccessFile.write(deflateBuf);
+        randomAccessFile.write(deflateBuf,0,deflateSize);
+        list.add(deflateSize);
 //        mappedByteBuffer.put(deflateBuf);
 //        randomAccessFile.close();
         cache.reset();
@@ -514,6 +517,17 @@ public class MessageStore {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        }
+
+        try {
+            FileOutputStream fileOutputStream = new FileOutputStream(PATH + "index");
+            ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
+            objectOutputStream.writeObject(deflatePosition);
+            objectOutputStream.close();
+            fileOutputStream.close();
+
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 

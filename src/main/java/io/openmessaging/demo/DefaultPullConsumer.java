@@ -4,14 +4,13 @@ import io.openmessaging.KeyValue;
 import io.openmessaging.Message;
 import io.openmessaging.PullConsumer;
 
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -49,6 +48,7 @@ public class DefaultPullConsumer implements PullConsumer {
 
     private MessageStore messageStore;
 
+    private Map<String, ArrayList<Integer>> deflatePosition;
     private ExecutorService executorService = Executors.newSingleThreadExecutor();
     private BlockingQueue<byte[]> cacheQueue = new LinkedBlockingQueue<>(2);
 //    private BlockingQueue<byte[]> messQueue = new LinkedBlockingQueue<>(MESS_CACHE);
@@ -58,6 +58,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //    private String bucket;
 
     private RandomAccessFile randomAccessFile;
+    private ArrayList<Integer> positionList;
 //    private Thread thisThread;
 
     private int n;
@@ -357,10 +358,53 @@ public class DefaultPullConsumer implements PullConsumer {
 //
 
         //RAF分段读到cache(带解压缩)
+//        try {
+//            if (cached != 0 && cached < randomAccessFile.length()) {
+////                if (cached < randomAccessFile.length() - FILE_BLOCK) {
+//                cache = new byte[DEFLATE_BLOCK];
+//                randomAccessFile.read(cache);
+//                byte[] out = new byte[FILE_BLOCK];
+//                uncompressor.setInput(cache);
+//                uncompressor.inflate(out);
+//                uncompressor.reset();
+//                cache = out;
+//                cached += DEFLATE_BLOCK;
+//                return true;
+////                }
+//
+////                cache = new byte[(int) (randomAccessFile.length() - cached)];
+////                randomAccessFile.read(cache);
+////                cached = (int) randomAccessFile.length();
+////                return true;
+//            }
+//
+//            if (it.hasNext()) {
+//                cached = 0;
+//                randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
+//                cache = new byte[DEFLATE_BLOCK];
+//                randomAccessFile.read(cache);
+//                byte[] out = new byte[FILE_BLOCK];
+//                uncompressor.setInput(cache);
+//                uncompressor.inflate(out);
+//                uncompressor.reset();
+//                cache = out;
+//                cached += DEFLATE_BLOCK;
+//
+//                return true;
+//            }
+//        } catch (IOException | DataFormatException e) {
+//            e.printStackTrace();
+//        }
+//
+//        return false;
+
+
+
+        //RAF压缩分段读到cache(带解压缩)
         try {
-            if (cached != 0 && cached < randomAccessFile.length()) {
-//                if (cached < randomAccessFile.length() - FILE_BLOCK) {
-                cache = new byte[DEFLATE_BLOCK];
+            if (index != 0 && index < positionList.size()) {
+                int position = positionList.get(index++);
+                cache = new byte[position];
                 randomAccessFile.read(cache);
                 byte[] out = new byte[FILE_BLOCK];
                 uncompressor.setInput(cache);
@@ -369,18 +413,16 @@ public class DefaultPullConsumer implements PullConsumer {
                 cache = out;
                 cached += DEFLATE_BLOCK;
                 return true;
-//                }
-
-//                cache = new byte[(int) (randomAccessFile.length() - cached)];
-//                randomAccessFile.read(cache);
-//                cached = (int) randomAccessFile.length();
-//                return true;
             }
 
             if (it.hasNext()) {
                 cached = 0;
-                randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
-                cache = new byte[DEFLATE_BLOCK];
+                index = 0;
+                String bucket = it.next();
+                randomAccessFile = new RandomAccessFile(PATH + bucket, "r");
+                positionList = deflatePosition.get(bucket);
+                int position = positionList.get(index++);
+                cache = new byte[position];
                 randomAccessFile.read(cache);
                 byte[] out = new byte[FILE_BLOCK];
                 uncompressor.setInput(cache);
@@ -568,6 +610,16 @@ public class DefaultPullConsumer implements PullConsumer {
         bucketList.add(queueName);
         bucketList.addAll(topics);
         it = bucketList.iterator();
+
+        try {
+            FileInputStream fileInputStream = new FileInputStream(PATH + "index");
+            ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
+            deflatePosition = (Map<String, ArrayList<Integer>>) objectInputStream.readObject();
+            objectInputStream.close();
+            fileInputStream.close();
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
 
 
 //        读到缓存

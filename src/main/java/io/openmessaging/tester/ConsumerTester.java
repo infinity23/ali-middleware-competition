@@ -82,15 +82,15 @@ public class ConsumerTester {
                     String properties = (message).properties().getString("properties");
 
 
-//                    int properties2 = (message).properties().getInt("properties2");
-//                    double properties3 = (message).properties().getDouble("properties3");
-//                    long properties4 = (message).properties().getLong("properties4");
-//                    String properties5 = (message).properties().getString("properties5");
-//
-//                    assert properties2==100;
-//                    assert properties3==100.0;
-//                    assert properties4==100L;
-//                    assert properties5.equals("abcd");
+                    int properties2 = (message).properties().getInt("properties2");
+                    double properties3 = (message).properties().getDouble("properties3");
+                    long properties4 = (message).properties().getLong("properties4");
+                    String properties5 = (message).properties().getString("properties5");
+
+                    assert properties2==100;
+                    assert properties3==100.0;
+                    assert properties4==100L;
+                    assert properties5.equals("abcd");
 
 
                     if(Integer.parseInt(properties) != offsets.get(queueOrTopic).get(producer)){
