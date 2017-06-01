@@ -4,15 +4,26 @@ import io.openmessaging.KeyValue;
 import io.openmessaging.Message;
 import io.openmessaging.PullConsumer;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.zip.Inflater;
+import java.util.zip.InflaterOutputStream;
 
 public class DefaultPullConsumer implements PullConsumer {
-    private static final int FILE_BLOCK = 1024 * 1024 * 40;
+//    private static final int FILE_BLOCK = 1024 * 1024 * 40;
+    private static final int FILE_BLOCK = 1024 * 1024 * 20;
+    public static final int DEFLATE_BLOCK = FILE_BLOCK / 20;
     private static final int BYTES_CACHE = FILE_BLOCK * 2;
     private static final int APPEND_BLOCK = 1024 * 1024 * 10;
     public static final int MESS_CACHE = 50000;
@@ -57,6 +68,12 @@ public class DefaultPullConsumer implements PullConsumer {
 
     private int cached;
 
+
+    private Inflater uncompressor = new Inflater();
+
+
+
+
     //    private CyclicBarrier cyclicBarrier;
 //    private boolean done;
 //    private Map<String, Long> positionMap = new HashMap<>(100);
@@ -100,45 +117,45 @@ public class DefaultPullConsumer implements PullConsumer {
 //        return null;
 
         //对应RAF分块线程分离
-        while(position < thisCache.length && thisCache[position] != 0){
-//            //用于非一块大小
-//                if(position%FILE_BLOCK == 0){
-//                    lastPositin = position - 1;
-//                }
-            if(thisCache[position] == 29){
-                byte[] bytes = new byte[position - lastPositin];
-                System.arraycopy(thisCache,lastPositin + 1,bytes,0,position - lastPositin);
-                lastPositin = position++;
-                return MessageUtil.read(bytes);
-            }
-            position ++;
-        }
-
-        try {
-            if(!done){
-                thisCache = cacheQueue.take();
-            }else {
-                thisCache = cacheQueue.poll();
-            }
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        if(thisCache != null){
-            position = 0;
-            lastPositin = -1;
-            while(position < thisCache.length){
-                if(thisCache[position] == 29){
-                    byte[] bytes = new byte[position - lastPositin];
-                    System.arraycopy(thisCache,lastPositin + 1,bytes,0,position - lastPositin);
-                    lastPositin = position++;
-                    return MessageUtil.read(bytes);
-            }
-            position++;
-            }
-        }
-
-        return null;
+//        while(position < thisCache.length && thisCache[position] != 0){
+////            //用于非一块大小
+////                if(position%FILE_BLOCK == 0){
+////                    lastPositin = position - 1;
+////                }
+//            if(thisCache[position] == 29){
+//                byte[] bytes = new byte[position - lastPositin];
+//                System.arraycopy(thisCache,lastPositin + 1,bytes,0,position - lastPositin);
+//                lastPositin = position++;
+//                return MessageUtil.read(bytes);
+//            }
+//            position ++;
+//        }
+//
+//        try {
+//            if(!done){
+//                thisCache = cacheQueue.take();
+//            }else {
+//                thisCache = cacheQueue.poll();
+//            }
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+//
+//        if(thisCache != null){
+//            position = 0;
+//            lastPositin = -1;
+//            while(position < thisCache.length){
+//                if(thisCache[position] == 29){
+//                    byte[] bytes = new byte[position - lastPositin];
+//                    System.arraycopy(thisCache,lastPositin + 1,bytes,0,position - lastPositin);
+//                    lastPositin = position++;
+//                    return MessageUtil.read(bytes);
+//            }
+//            position++;
+//            }
+//        }
+//
+//        return null;
 
 
         //对应分段mmp
@@ -224,35 +241,35 @@ public class DefaultPullConsumer implements PullConsumer {
 
         //缓存版,从byte[]读取
 
-//        while(position < cache.length && cache[position] != 0){
-////            //用于非一块大小
-////                if(position%FILE_BLOCK == 0){
-////                    lastPositin = position - 1;
-////                }
-//            if(cache[position] == 29){
-//                byte[] bytes = new byte[position - lastPositin];
-//                System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
-//                lastPositin = position++;
-//                return MessageUtil.read(bytes);
-//            }
-//            position ++;
-//        }
-//
-//        if(read()){
-//            position = 0;
-//            lastPositin = -1;
-//            while(position < cache.length){
-//                if(cache[position] == 29){
-//                    byte[] bytes = new byte[position - lastPositin];
-//                    System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
-//                    lastPositin = position++;
-//                    return MessageUtil.read(bytes);
-//            }
-//            position++;
-//            }
-//        }
-//
-//        return null;
+        while(position < cache.length && cache[position] != 0){
+            //用于非一块大小
+//                if(position%FILE_BLOCK == 0){
+//                    lastPositin = position - 1;
+//                }
+            if(cache[position] == 29){
+                byte[] bytes = new byte[position - lastPositin];
+                System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
+                lastPositin = position++;
+                return MessageUtil.read(bytes);
+            }
+            position ++;
+        }
+
+        if(read()){
+            position = 0;
+            lastPositin = -1;
+            while(position < cache.length){
+                if(cache[position] == 29){
+                    byte[] bytes = new byte[position - lastPositin];
+                    System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
+                    lastPositin = position++;
+                    return MessageUtil.read(bytes);
+            }
+            position++;
+            }
+        }
+
+        return null;
 
 
 //      mmp每次读一个
@@ -311,27 +328,69 @@ public class DefaultPullConsumer implements PullConsumer {
     private boolean read() {
 
 ////        RAF分段读到cache
+//        try {
+//            if (cached != 0 && cached < randomAccessFile.length()){
+////                if (cached < randomAccessFile.length() - FILE_BLOCK) {
+//                    cache = new byte[FILE_BLOCK];
+//                    randomAccessFile.read(cache);
+//                    cached += FILE_BLOCK;
+////                    return true;
+////                }
+////
+////                cache = new byte[(int) (randomAccessFile.length() - cached)];
+////                randomAccessFile.read(cache);
+////                cached = (int) randomAccessFile.length();
+////                return true;
+//            }
+//
+//            if (it.hasNext()) {
+//                cached = 0;
+//                randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
+//                cache = new byte[FILE_BLOCK];
+//                randomAccessFile.read(cache);
+//                cached += FILE_BLOCK;
+//
+//                return true;
+//            }
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//
+//        return false;
+//
+
+        //RAF分段读到cache(带解压缩)
         try {
             if (cached != 0 && cached < randomAccessFile.length()){
-                if (cached < randomAccessFile.length() - FILE_BLOCK) {
-                    cache = new byte[FILE_BLOCK];
+//                if (cached < randomAccessFile.length() - FILE_BLOCK) {
+                    cache = new byte[DEFLATE_BLOCK];
                     randomAccessFile.read(cache);
-                    cached += FILE_BLOCK;
+                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                InflaterOutputStream inflaterOutputStream = new InflaterOutputStream(byteArrayOutputStream);
+                inflaterOutputStream.write(cache);
+                inflaterOutputStream.close();
+                cache = byteArrayOutputStream.toByteArray();
+                    cached += DEFLATE_BLOCK;
                     return true;
-                }
+//                }
 
-                cache = new byte[(int) (randomAccessFile.length() - cached)];
-                randomAccessFile.read(cache);
-                cached = (int) randomAccessFile.length();
-                return true;
+//                cache = new byte[(int) (randomAccessFile.length() - cached)];
+//                randomAccessFile.read(cache);
+//                cached = (int) randomAccessFile.length();
+//                return true;
             }
 
             if (it.hasNext()) {
                 cached = 0;
                 randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
-                cache = new byte[FILE_BLOCK];
+                cache = new byte[DEFLATE_BLOCK];
                 randomAccessFile.read(cache);
-                cached += FILE_BLOCK;
+                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                InflaterOutputStream inflaterOutputStream = new InflaterOutputStream(byteArrayOutputStream);
+                inflaterOutputStream.write(cache);
+                inflaterOutputStream.close();
+                cache = byteArrayOutputStream.toByteArray();
+                cached += DEFLATE_BLOCK;
 
                 return true;
             }
@@ -393,12 +452,19 @@ public class DefaultPullConsumer implements PullConsumer {
 //        return false;
 
 
-        //RAF一次读一个bucket
+        //RAF一次读一个bucket(加解压)
 //        try{
 //            if(it.hasNext()){
 //                RandomAccessFile randomAccessFile = new RandomAccessFile(PATH + it.next(),"r");
+//                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+//                InflaterOutputStream inflaterOutputStream = new InflaterOutputStream(byteArrayOutputStream);
+//
 //                cache = new byte[(int) randomAccessFile.length()];
 //                randomAccessFile.read(cache);
+//
+//                inflaterOutputStream.write(cache);
+//                inflaterOutputStream.close();
+//                cache = byteArrayOutputStream.toByteArray();
 //                randomAccessFile.close();
 //                return true;
 //            }
@@ -516,26 +582,26 @@ public class DefaultPullConsumer implements PullConsumer {
 //            e.printStackTrace();
 //        }
 
-//        read();
+        read();
 
 
         //对应线程分离RAF
-        executorService.execute(() -> {
-            try {
-                while(read()) {
-                    cacheQueue.put(cache);
-                }
-                done = true;
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        });
-
-        try {
-            thisCache = cacheQueue.take();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+//        executorService.execute(() -> {
+//            try {
+//                while(read()) {
+//                    cacheQueue.put(cache);
+//                }
+//                done = true;
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+//        });
+//
+//        try {
+//            thisCache = cacheQueue.take();
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
 
 
         //对应MMP线程分离

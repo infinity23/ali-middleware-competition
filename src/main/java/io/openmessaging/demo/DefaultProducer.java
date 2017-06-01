@@ -7,15 +7,20 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
+import java.util.zip.Deflater;
+import java.util.zip.DeflaterOutputStream;
 
 public class DefaultProducer implements Producer {
     private static Random random = new Random(System.currentTimeMillis());
     public static final int MESS_MAX = 10000;
     public static final int BUCKET_SIZE = 1024 * 1024 * 100;
-//    private static final int CACHE_SIZE = 1024 * 1024 * 2                                                                                                                                                                                                                                                                                                                                        ;
+    private static final int CACHE_SIZE = 1024 * 1024 * 2                                                                                                                                                                                                                                                                                                                                        ;
 //    private static final int CACHE_SIZE = 1024 * 512 * (random.nextInt(5) + 1);
     private static int level = 1;
-    private static final int CACHE_SIZE = 1024 * 512 * level++;
+//    private static final int CACHE_SIZE = 1024 * 512 * level++;
+//    private static final int CACHE_SIZE = 1024 * 1024 * 5;
     //    private static final long SLEEP_TIME = 10;
     private MessageFactory messageFactory = new DefaultMessageFactory();
     private MessageStore messageStore;
@@ -33,6 +38,11 @@ public class DefaultProducer implements Producer {
 
     private int messNum;
 
+
+    private Deflater compresser = new Deflater(Deflater.BEST_SPEED);
+    private Map<String, DeflaterOutputStream> deflaterOuputStreamMap = new HashMap<>(100);
+    private Map<String, byte[]> deflateMap = new HashMap<>(100);
+    private Map<String,Integer> deflaterSizeMap = new HashMap<>(100);
 
     public DefaultProducer(KeyValue properties) {
         this.properties = properties;
@@ -130,7 +140,8 @@ public class DefaultProducer implements Producer {
 
         //缓存数据再交ms
         if (!resultData.containsKey(bucket)) {
-            resultData.put(bucket, new ByteArrayOutputStream(CACHE_SIZE));
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(CACHE_SIZE);
+            resultData.put(bucket, byteArrayOutputStream);
         }
         byte[] bytes = MessageUtil.write(message);
         ByteArrayOutputStream byteArrayOutputStream = resultData.get(bucket);
@@ -143,6 +154,26 @@ public class DefaultProducer implements Producer {
             e.printStackTrace();
         }
 
+
+        //缓存数据再交ms(压缩版)
+//        if (!deflateMap.containsKey(bucket)) {
+//            byte[] deflateBuf = new byte[CACHE_SIZE];
+//            deflateMap.put(bucket, deflateBuf);
+//            deflaterSizeMap.put(bucket, 0);
+//        }
+//        byte[] bytes = MessageUtil.write(message);
+//        int deflaterSize = deflaterSizeMap.get(bucket);
+//        if(CACHE_SIZE - deflaterSize < 100){
+//            messageStore.flush(deflateMap,deflaterSizeMap);
+//            deflaterSize = 0;
+//        }
+//        byte[] deflaterBuf = deflateMap.get(bucket);
+//        compresser.setInput(bytes);
+//        compresser.finish();
+//        deflaterSize += compresser.deflate(deflaterBuf,deflaterSize,100);
+//        compresser.reset();
+//
+//        deflaterSizeMap.put(bucket, deflaterSize);
     }
 
     @Override
@@ -184,6 +215,13 @@ public class DefaultProducer implements Producer {
     @Override
     public void flush() {
         messageStore.flush(resultData);
+        CyclicBarrier cyclicBarrier = messageStore.getCyclicBarrier();
+        try {
+            cyclicBarrier.await();
+        } catch (InterruptedException | BrokenBarrierException e) {
+            e.printStackTrace();
+        }
+//        messageStore.flush(deflateMap,deflaterSizeMap);
 //        System.out.println("刷新到硬盘");
 //        long start = System.currentTimeMillis();
         //原版

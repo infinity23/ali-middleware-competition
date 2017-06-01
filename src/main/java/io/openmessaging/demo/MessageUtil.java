@@ -3,8 +3,13 @@ package io.openmessaging.demo;
 import io.openmessaging.BytesMessage;
 import io.openmessaging.Message;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.*;
+import java.util.zip.Deflater;
+import java.util.zip.Inflater;
+import java.util.zip.InflaterOutputStream;
 
 public class MessageUtil {
 
@@ -15,6 +20,8 @@ public class MessageUtil {
 //    private static final char COM = ',';
     private static final char EQU = '=';
 
+    private static final Deflater compressor = new Deflater(1);
+    private static final Inflater uncompressor = new Inflater();
 
     public static byte[] write(Message message) {
         BytesMessage bytesMessage = (BytesMessage) message;
@@ -148,6 +155,34 @@ public class MessageUtil {
 
         return keyValue;
     }
+
+
+
+    public static void compress(byte[] input, ByteArrayOutputStream byteArrayOutputStream){
+//        DeflaterOutputStream deflaterOutputStream = new DeflaterOutputStream(byteArrayOutputStream,compressor);
+//        try {
+//            deflaterOutputStream.write(input);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+
+
+
+    }
+
+    public static void uncompress(byte[] input, ByteArrayOutputStream byteArrayOutputStream){
+        InflaterOutputStream inflaterOutputStream = new InflaterOutputStream(byteArrayOutputStream, uncompressor);
+        try {
+            inflaterOutputStream.write(input);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+
+
+
 
 
     //HashMap排序
