@@ -6,6 +6,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -20,7 +21,7 @@ public class MessageStore {
     //    private static final long MAX_MESS_NUM = 1024 * 1024 * 10;
     private static final long MAX_MESS_NUM = 50000;
     private static final long SLEEP_TIME = 10;
-    public static final int CACHE_SIZE = 1024 * 1024 * 2;
+    public static final int CACHE_SIZE = 1024 * 512;
 //    public static final int FILE_BLOCK = 1024 * 1024 * 40;
     public static final int FILE_BLOCK = 1024 * 1024 * 20;
     public static final int DEFLATE_BLOCK = FILE_BLOCK / 20;
@@ -31,7 +32,7 @@ public class MessageStore {
     private boolean firstPull = true;
     //    private Map<String, Integer> topicMap = new ConcurrentHashMap<>(100);
 //    private Map<String, Long> position = new HashMap<>(100);
-//    private AtomicInteger messNum = new AtomicInteger();
+    private AtomicInteger messNum = new AtomicInteger();
 //    private volatile long totalNum;
 //    private volatile boolean flushing;
 //    private Map<String, RandomAccessFile> randomAccessFileMap = new ConcurrentHashMap<>(100);
@@ -41,7 +42,7 @@ public class MessageStore {
 
 //    private Map<String, ObjectOutputStream> objectOutputStreamMap = new ConcurrentHashMap<>(100);
 
-//    private Map<String, ByteBuffer> resultData = new ConcurrentHashMap<>(100);
+    private Map<String, ByteArrayOutputStream> resultData = new ConcurrentHashMap<>(100);
 //    private Map<String, ConcurrentLinkedQueue<Message>> resultMap = new ConcurrentHashMap<>(100);
 
     private Map<String, MappedByteBuffer> mappedByteBufferMap = new ConcurrentHashMap<>(100);
@@ -182,6 +183,23 @@ public class MessageStore {
 //            e.printStackTrace();
 //        }
 
+//    public synchronized void putMessage(String bucket, byte[] bytes){
+//        if (!resultData.containsKey(bucket)) {
+//            resultData.put(bucket, new ByteArrayOutputStream(FILE_BLOCK));
+//        }
+////        synchronized (this) {
+//            try {
+//                ByteArrayOutputStream byteArrayOutputStream = resultData.get(bucket);
+//                if(FILE_BLOCK - byteArrayOutputStream.size() < bytes.length){
+//                    writeToFile(bucket,byteArrayOutputStream);
+//                }
+//                byteArrayOutputStream.write(bytes);
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+////        }
+//    }
+
 
     public void putMessage(String bucket, Message message) {
 
@@ -211,16 +229,24 @@ public class MessageStore {
 
 //        messNum.getAndIncrement();
 //        if (!resultData.containsKey(bucket)) {
-//            resultData.put(bucket, ByteBuffer.allocateDirect(FILE_BLOCK));
+//            resultData.put(bucket, new ByteArrayOutputStream(FILE_BLOCK));
 //        }
 //
 //
 //        synchronized (this) {
-//            ByteBuffer byteBuffer = resultData.get(bucket);
-//            byteBuffer.put(MessageUtil.write(message));
+//            try {
+//                byte[] bytes = MessageUtil.write(message);
+//                ByteArrayOutputStream byteArrayOutputStream = resultData.get(bucket);
+//                if(FILE_BLOCK - byteArrayOutputStream.size() < bytes.length){
+//                        writeToFile(bucket,byteArrayOutputStream);
+//                }
+//                byteArrayOutputStream.write(bytes);
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
 //        }
-//
-//
+
+
 //        while (messNum.get() > 100000) {
 //            synchronized (this) {
 //                while (messNum.get() > 100000) {
@@ -472,13 +498,15 @@ public class MessageStore {
 
     private void writeToFile(String bucket, ByteArrayOutputStream cache) throws IOException {
         RandomAccessFile randomAccessFile = new RandomAccessFile(PATH + bucket, "rw");
+        MappedByteBuffer mappedByteBuffer = randomAccessFile.getChannel().map(FileChannel.MapMode.READ_WRITE,randomAccessFile.length(),DEFLATE_BLOCK);
         byte[] deflateBuf = new byte[DEFLATE_BLOCK];
         deflater.setInput(cache.toByteArray());
         deflater.finish();
-        int deflateSize = deflater.deflate(deflateBuf);
+        deflater.deflate(deflateBuf);
         deflater.reset();
-        randomAccessFile.seek(randomAccessFile.length());
-        randomAccessFile.write(deflateBuf);
+//        randomAccessFile.seek(randomAccessFile.length());
+//        randomAccessFile.write(deflateBuf);
+        mappedByteBuffer.put(deflateBuf);
         randomAccessFile.close();
         cache.reset();
     }
