@@ -4,7 +4,6 @@ import io.openmessaging.KeyValue;
 import io.openmessaging.Message;
 import io.openmessaging.PullConsumer;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
@@ -17,11 +16,11 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
-import java.util.zip.InflaterOutputStream;
 
 public class DefaultPullConsumer implements PullConsumer {
-//    private static final int FILE_BLOCK = 1024 * 1024 * 40;
+    //    private static final int FILE_BLOCK = 1024 * 1024 * 40;
     private static final int FILE_BLOCK = 1024 * 1024 * 10;
     public static final int DEFLATE_BLOCK = FILE_BLOCK / 20;
     private static final int BYTES_CACHE = FILE_BLOCK * 2;
@@ -70,8 +69,6 @@ public class DefaultPullConsumer implements PullConsumer {
 
 
     private Inflater uncompressor = new Inflater();
-
-
 
 
     //    private CyclicBarrier cyclicBarrier;
@@ -241,31 +238,31 @@ public class DefaultPullConsumer implements PullConsumer {
 
         //缓存版,从byte[]读取
 
-        while(position < cache.length && cache[position] != 0){
+        while (position < cache.length && cache[position] != 0) {
             //用于非一块大小
 //                if(position%FILE_BLOCK == 0){
 //                    lastPositin = position - 1;
 //                }
-            if(cache[position] == 29){
+            if (cache[position] == 29) {
                 byte[] bytes = new byte[position - lastPositin];
-                System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
+                System.arraycopy(cache, lastPositin + 1, bytes, 0, position - lastPositin);
                 lastPositin = position++;
                 return MessageUtil.read(bytes);
             }
-            position ++;
+            position++;
         }
 
-        if(read()){
+        if (read()) {
             position = 0;
             lastPositin = -1;
-            while(position < cache.length){
-                if(cache[position] == 29){
+            while (position < cache.length) {
+                if (cache[position] == 29) {
                     byte[] bytes = new byte[position - lastPositin];
-                    System.arraycopy(cache,lastPositin + 1,bytes,0,position - lastPositin);
+                    System.arraycopy(cache, lastPositin + 1, bytes, 0, position - lastPositin);
                     lastPositin = position++;
                     return MessageUtil.read(bytes);
-            }
-            position++;
+                }
+                position++;
             }
         }
 
@@ -361,17 +358,17 @@ public class DefaultPullConsumer implements PullConsumer {
 
         //RAF分段读到cache(带解压缩)
         try {
-            if (cached != 0 && cached < randomAccessFile.length()){
+            if (cached != 0 && cached < randomAccessFile.length()) {
 //                if (cached < randomAccessFile.length() - FILE_BLOCK) {
-                    cache = new byte[DEFLATE_BLOCK];
-                    randomAccessFile.read(cache);
-                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                InflaterOutputStream inflaterOutputStream = new InflaterOutputStream(byteArrayOutputStream);
-                inflaterOutputStream.write(cache);
-                inflaterOutputStream.close();
-                cache = byteArrayOutputStream.toByteArray();
-                    cached += DEFLATE_BLOCK;
-                    return true;
+                cache = new byte[DEFLATE_BLOCK];
+                randomAccessFile.read(cache);
+                byte[] out = new byte[FILE_BLOCK];
+                uncompressor.setInput(cache);
+                uncompressor.inflate(out);
+                uncompressor.reset();
+                cache = out;
+                cached += DEFLATE_BLOCK;
+                return true;
 //                }
 
 //                cache = new byte[(int) (randomAccessFile.length() - cached)];
@@ -385,16 +382,16 @@ public class DefaultPullConsumer implements PullConsumer {
                 randomAccessFile = new RandomAccessFile(PATH + it.next(), "r");
                 cache = new byte[DEFLATE_BLOCK];
                 randomAccessFile.read(cache);
-                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                InflaterOutputStream inflaterOutputStream = new InflaterOutputStream(byteArrayOutputStream);
-                inflaterOutputStream.write(cache);
-                inflaterOutputStream.close();
-                cache = byteArrayOutputStream.toByteArray();
+                byte[] out = new byte[FILE_BLOCK];
+                uncompressor.setInput(cache);
+                uncompressor.inflate(out);
+                uncompressor.reset();
+                cache = out;
                 cached += DEFLATE_BLOCK;
 
                 return true;
             }
-        } catch (IOException e) {
+        } catch (IOException | DataFormatException e) {
             e.printStackTrace();
         }
 

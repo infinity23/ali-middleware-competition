@@ -68,7 +68,7 @@ public class ProducerTester {
                     message.putProperties("properties2",100);
                     message.putProperties("properties3",100.0);
                     message.putProperties("properties4",100L);
-                    message.putProperties("properties5","safdasdfwefasdfasdfawesdfwefdfaSDF");
+                    message.putProperties("properties5","abcd");
 
                     logger.debug("queueOrTopic:{} offset:{}", queueOrTopic, label + "_" + offsets.get(queueOrTopic));
                     offsets.put(queueOrTopic, offsets.get(queueOrTopic) + 1);

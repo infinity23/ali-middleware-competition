@@ -88,7 +88,7 @@ public class ConsumerTester {
                     assert properties2==100;
                     assert properties3==100.0;
                     assert properties4==100L;
-                    assert properties5.equals("safdasdfwefasdfasdfawesdfwefdfaSDF");
+                    assert properties5.equals("abcd");
 
 
                     if(Integer.parseInt(properties) != offsets.get(queueOrTopic).get(producer)){

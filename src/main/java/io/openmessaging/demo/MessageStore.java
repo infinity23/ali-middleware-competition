@@ -5,9 +5,6 @@ import io.openmessaging.Message;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,31 +19,29 @@ public class MessageStore {
     private static final long MAX_MESS_NUM = 50000;
     private static final long SLEEP_TIME = 10;
     public static final int CACHE_SIZE = 1024 * 512;
-//    public static final int FILE_BLOCK = 1024 * 1024 * 40;
+    //    public static final int FILE_BLOCK = 1024 * 1024 * 40;
     public static final int FILE_BLOCK = 1024 * 1024 * 10;
     public static final int DEFLATE_BLOCK = FILE_BLOCK / 20;
     private static final int APPEND_BLOCK = 1024 * 1024 * 10;
     private static MessageStore instance;
     //    public static final String PATH = "E:/Major/Open-Messaging/";
     public static String PATH;
-    private boolean firstPull = true;
     //    private Map<String, Integer> topicMap = new ConcurrentHashMap<>(100);
 //    private Map<String, Long> position = new HashMap<>(100);
-    private AtomicInteger messNum = new AtomicInteger();
-//    private volatile long totalNum;
+//    private AtomicInteger messNum = new AtomicInteger();
+    //    private volatile long totalNum;
 //    private volatile boolean flushing;
-//    private Map<String, RandomAccessFile> randomAccessFileMap = new ConcurrentHashMap<>(100);
 //
 //    private ExecutorService executorService = Executors.newSingleThreadExecutor();
 
 
 //    private Map<String, ObjectOutputStream> objectOutputStreamMap = new ConcurrentHashMap<>(100);
 
-    private Map<String, ByteArrayOutputStream> resultData = new ConcurrentHashMap<>(100);
+    //    private Map<String, ByteArrayOutputStream> resultData = new ConcurrentHashMap<>(100);
 //    private Map<String, ConcurrentLinkedQueue<Message>> resultMap = new ConcurrentHashMap<>(100);
+//    private Map<String, MappedByteBuffer> mappedByteBufferMap = new ConcurrentHashMap<>(100);
 
-    private Map<String, MappedByteBuffer> mappedByteBufferMap = new ConcurrentHashMap<>(100);
-
+    private Map<String, RandomAccessFile> randomAccessFileMap = new ConcurrentHashMap<>(100);
     private Map<String, ByteArrayOutputStream> cacheMap = new HashMap<>(100);
     private Deflater deflater = new Deflater(1);
 
@@ -56,20 +51,20 @@ public class MessageStore {
     //    private Map<String, Integer> sortedMap = new HashMap<>(100);
 //    private Set<String> bucketSet = new CopyOnWriteArraySet<>();
 
-//    private String bucket;
+    //    private String bucket;
 //    private Iterator<String> it;
-    private MappedByteBuffer mappedByteBuffer;
+//    private MappedByteBuffer mappedByteBuffer;
 //    private FileChannel fileChannel;
 //    private ArrayList<Message> messList = new ArrayList<>();
 
     private static AtomicInteger threadNum = new AtomicInteger(0);
-    private static CyclicBarrier cyclicBarrier ;
-//    private boolean done;
-    private ArrayList<byte[]> bytesList = new ArrayList<>();
+    private static CyclicBarrier cyclicBarrier;
+    //    private boolean done;
+//    private ArrayList<byte[]> bytesList = new ArrayList<>();
 
-    public synchronized CyclicBarrier getCyclicBarrier(){
-        if(cyclicBarrier == null){
-            cyclicBarrier= new CyclicBarrier(threadNum.get(), new Runnable() {
+    public synchronized CyclicBarrier getCyclicBarrier() {
+        if (cyclicBarrier == null) {
+            cyclicBarrier = new CyclicBarrier(threadNum.get(), new Runnable() {
                 @Override
                 public void run() {
                     end();
@@ -468,8 +463,6 @@ public class MessageStore {
 //    }
 
 
-
-
 //        // 对应缓存数据版本(压缩版)
         try {
             for (String bucket : resultData.keySet()) {
@@ -497,23 +490,25 @@ public class MessageStore {
     }
 
     private void writeToFile(String bucket, ByteArrayOutputStream cache) throws IOException {
-        RandomAccessFile randomAccessFile = new RandomAccessFile(PATH + bucket, "rw");
-        MappedByteBuffer mappedByteBuffer = randomAccessFile.getChannel().map(FileChannel.MapMode.READ_WRITE,randomAccessFile.length(),DEFLATE_BLOCK);
+        if (!randomAccessFileMap.containsKey(bucket)) {
+            randomAccessFileMap.put(bucket, new RandomAccessFile(PATH + bucket, "rw"));
+        }
+        RandomAccessFile randomAccessFile = randomAccessFileMap.get(bucket);
+//        MappedByteBuffer mappedByteBuffer = randomAccessFile.getChannel().map(FileChannel.MapMode.READ_WRITE, randomAccessFile.length(), DEFLATE_BLOCK);
         byte[] deflateBuf = new byte[DEFLATE_BLOCK];
         deflater.setInput(cache.toByteArray());
         deflater.finish();
-        deflater.deflate(deflateBuf);
+        int deflateSize = deflater.deflate(deflateBuf);
         deflater.reset();
-//        randomAccessFile.seek(randomAccessFile.length());
-//        randomAccessFile.write(deflateBuf);
-        mappedByteBuffer.put(deflateBuf);
-        randomAccessFile.close();
+        randomAccessFile.write(deflateBuf);
+//        mappedByteBuffer.put(deflateBuf);
+//        randomAccessFile.close();
         cache.reset();
     }
 
-    private void end(){
+    private void end() {
 
-        for(Map.Entry<String, ByteArrayOutputStream> entry : cacheMap.entrySet()){
+        for (Map.Entry<String, ByteArrayOutputStream> entry : cacheMap.entrySet()) {
             try {
                 writeToFile(entry.getKey(), entry.getValue());
             } catch (IOException e) {
