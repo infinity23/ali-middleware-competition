@@ -65,7 +65,7 @@ public class ProducerTester {
 
                     //检测属性
                     message.putProperties("properties",offsets.get(queueOrTopic));
-                    message.putProperties("properties2",100);
+//                    message.putProperties("properties2",100);
 //                    message.putProperties("properties3",100.0);
 //                    message.putProperties("properties4",100L);
 //                    message.putProperties("properties5","abcd");

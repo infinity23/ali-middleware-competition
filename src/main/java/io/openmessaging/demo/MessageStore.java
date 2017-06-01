@@ -21,7 +21,7 @@ public class MessageStore {
     public static final int CACHE_SIZE = 1024 * 512;
     //    public static final int FILE_BLOCK = 1024 * 1024 * 40;
     public static final int FILE_BLOCK = 1024 * 1024 * 10;
-    public static final int DEFLATE_BLOCK = FILE_BLOCK / 10;
+    public static final int DEFLATE_BLOCK = FILE_BLOCK / 5;
     private static final int APPEND_BLOCK = 1024 * 1024 * 10;
     private static MessageStore instance;
     //    public static final String PATH = "E:/Major/Open-Messaging/";

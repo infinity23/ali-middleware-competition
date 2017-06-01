@@ -28,11 +28,11 @@ public class SendTester {
         for (int i = 0; i < 10; i++) {
             int finalI = i;
             executorService.execute(() -> {
-                Producer producer1 = new DefaultProducer(properties);
-                for (int j = 0; j < 10; j++) {
-                    ConcurrentLinkedQueue<Message> queue = it.next().getValue();
-                    for (Message message : queue) {
-                        producer1.send(message);
+                        Producer producer1 = new DefaultProducer(properties);
+                        for (int j = 0; j < 10; j++) {
+                            ConcurrentLinkedQueue<Message> queue = it.next().getValue();
+                            for (Message message : queue) {
+                                producer1.send(message);
                     }
                 }
 
