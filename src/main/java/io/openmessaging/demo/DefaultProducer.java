@@ -210,6 +210,7 @@ public class DefaultProducer implements Producer {
     //用于被kill之前刷新到硬盘
     @Override
     public void flush() {
+        System.out.println("最后flush");
 //        集中压缩版
 //        messageStore.flush(resultData);
 //        for(Map.Entry<String, ByteBuffer> entry : resultData.entrySet()){

@@ -11,10 +11,7 @@ import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.*;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.*;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
@@ -48,7 +45,7 @@ public class DefaultPullConsumer implements PullConsumer {
 
     private MessageStore messageStore;
 
-    private Map<String, ArrayList<Integer>> deflatePosition;
+    private Map<String, ConcurrentLinkedQueue<Integer>> deflatePosition;
     private ExecutorService executorService = Executors.newSingleThreadExecutor();
     private BlockingQueue<byte[]> cacheQueue = new LinkedBlockingQueue<>(2);
 //    private BlockingQueue<byte[]> messQueue = new LinkedBlockingQueue<>(MESS_CACHE);
@@ -58,7 +55,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //    private String bucket;
 
     private RandomAccessFile randomAccessFile;
-    private ArrayList<Integer> positionList;
+    private ConcurrentLinkedQueue<Integer> positionList;
 //    private Thread thisThread;
 
     private int n;
@@ -402,8 +399,8 @@ public class DefaultPullConsumer implements PullConsumer {
 
         //RAF压缩索引分段读到cache(带解压缩)
         try {
-            if (index != 0 && index < positionList.size()) {
-                int position = positionList.get(index++);
+            if (positionList != null && !positionList.isEmpty()) {
+                int position = positionList.poll();
                 cache = new byte[position];
                 randomAccessFile.read(cache);
                 byte[] out = new byte[FILE_BLOCK];
@@ -421,7 +418,7 @@ public class DefaultPullConsumer implements PullConsumer {
                 String bucket = it.next();
                 randomAccessFile = new RandomAccessFile(PATH + bucket, "r");
                 positionList = deflatePosition.get(bucket);
-                int position = positionList.get(index++);
+                int position = positionList.poll();
                 cache = new byte[position];
                 randomAccessFile.read(cache);
                 byte[] out = new byte[FILE_BLOCK];
@@ -615,7 +612,7 @@ public class DefaultPullConsumer implements PullConsumer {
         try {
             FileInputStream fileInputStream = new FileInputStream(PATH + "index");
             ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
-            deflatePosition = (Map<String, ArrayList<Integer>>) objectInputStream.readObject();
+            deflatePosition = (Map<String, ConcurrentLinkedQueue<Integer>>) objectInputStream.readObject();
             objectInputStream.close();
             fileInputStream.close();
         } catch (IOException | ClassNotFoundException e) {

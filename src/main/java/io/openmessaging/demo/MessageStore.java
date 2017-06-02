@@ -2,10 +2,11 @@ package io.openmessaging.demo;
 
 import io.openmessaging.Message;
 
-import java.io.*;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,9 +42,9 @@ public class MessageStore {
 //    private Map<String, MappedByteBuffer> mappedByteBufferMap = new ConcurrentHashMap<>(100);
 
     private Map<String, RandomAccessFile> randomAccessFileMap = new ConcurrentHashMap<>(100);
-    private Map<String, ByteBuffer> cacheMap = new HashMap<>(100);
+    private Map<String, ByteBuffer> cacheMap = new ConcurrentHashMap<>(100);
     private Deflater deflater = new Deflater(1);
-    private Map<String, ArrayList<Integer>> deflatePosition = new HashMap<>(100);
+    private Map<String, ConcurrentLinkedQueue<Integer>> deflatePosition = new ConcurrentHashMap<>(100);
 
 //    private ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
@@ -51,7 +52,6 @@ public class MessageStore {
     //    private Map<String, Integer> sortedMap = new HashMap<>(100);
 //    private Set<String> bucketSet = new CopyOnWriteArraySet<>();
 
-    //    private String bucket;
 //    private Iterator<String> it;
 //    private MappedByteBuffer mappedByteBuffer;
 //    private FileChannel fileChannel;
@@ -59,17 +59,13 @@ public class MessageStore {
 
     private static AtomicInteger threadNum = new AtomicInteger(0);
     private static CyclicBarrier cyclicBarrier;
+    private boolean hasFlush;
     //    private boolean done;
 //    private ArrayList<byte[]> bytesList = new ArrayList<>();
 
     public synchronized CyclicBarrier getCyclicBarrier() {
         if (cyclicBarrier == null) {
-            cyclicBarrier = new CyclicBarrier(threadNum.get(), new Runnable() {
-                @Override
-                public void run() {
-                    end();
-                }
-            });
+            cyclicBarrier = new CyclicBarrier(threadNum.get(), this::end);
         }
         return cyclicBarrier;
     }
@@ -178,21 +174,23 @@ public class MessageStore {
 //            e.printStackTrace();
 //        }
 
-    public synchronized void putMessage(String bucket, byte[] bytes){
-        if (!cacheMap.containsKey(bucket)) {
-            cacheMap.put(bucket, ByteBuffer.allocate(FILE_BLOCK));
-        }
-//        synchronized (this) {
-            try {
-                ByteBuffer byteBuffer = cacheMap.get(bucket);
-                if(FILE_BLOCK - byteBuffer.position() < bytes.length){
-                    writeToFile(bucket,byteBuffer);
-                }
-                byteBuffer.put(bytes);
-            } catch (IOException e) {
-                e.printStackTrace();
+    public void putMessage(String bucket, byte[] bytes){
+        synchronized (bucket.intern()) {
+            if (!cacheMap.containsKey(bucket)) {
+                cacheMap.put(bucket, ByteBuffer.allocate(FILE_BLOCK));
             }
-//        }
+                ByteBuffer cache = cacheMap.get(bucket);
+                if(FILE_BLOCK - cache.position() < bytes.length){
+                    try {
+                        writeToFile(bucket,cache);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+//                    executorService.execute(new WriteToFile(bucket,byteBuffer));
+//                    byteBuffer = ByteBuffer.allocate(FILE_BLOCK);
+                }
+            cache.put(bytes);
+        }
     }
 
 
@@ -493,31 +491,31 @@ public class MessageStore {
     private void writeToFile(String bucket, ByteBuffer cache) throws IOException {
         if (!randomAccessFileMap.containsKey(bucket)) {
             randomAccessFileMap.put(bucket, new RandomAccessFile(PATH + bucket, "rw"));
-            deflatePosition.put(bucket, new ArrayList<>());
+            deflatePosition.put(bucket, new ConcurrentLinkedQueue<>());
         }
         RandomAccessFile randomAccessFile = randomAccessFileMap.get(bucket);
-        ArrayList<Integer> list = deflatePosition.get(bucket);
 //        MappedByteBuffer mappedByteBuffer = randomAccessFile.getChannel().map(FileChannel.MapMode.READ_WRITE, randomAccessFile.length(), DEFLATE_BLOCK);
         byte[] deflateBuf = new byte[FILE_BLOCK];
+        Deflater deflater = new Deflater(1);
         deflater.setInput(cache.array(), 0, cache.position());
         deflater.finish();
         int deflateSize = deflater.deflate(deflateBuf);
-        deflater.reset();
-        randomAccessFile.write(deflateBuf, 0, deflateSize);
-        list.add(deflateSize);
+        deflater.end();
+//        deflater.reset();
+        byte[] data = new byte[deflateSize];
+        System.arraycopy(deflateBuf,0,data,0,deflateSize);
+        randomAccessFile.write(data);
+        deflatePosition.get(bucket).add(deflateSize);
 //        mappedByteBuffer.put(deflateBuf);
 //        randomAccessFile.close();
         cache.clear();
     }
 
     private void end() {
-
         for (Map.Entry<String, ByteBuffer> entry : cacheMap.entrySet()) {
-
 //            executorService.execute(new WriteToFile(entry.getKey(), entry.getValue()));
-
             try {
-                writeToFile(entry.getKey(), entry.getValue());
+                    writeToFile(entry.getKey(), entry.getValue());
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -527,9 +525,8 @@ public class MessageStore {
             FileOutputStream fileOutputStream = new FileOutputStream(PATH + "index");
             ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
             objectOutputStream.writeObject(deflatePosition);
-            objectOutputStream.close();
-            fileOutputStream.close();
-
+//            objectOutputStream.close();
+//            fileOutputStream.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -539,10 +536,10 @@ public class MessageStore {
         try {
             if (!randomAccessFileMap.containsKey(bucket)) {
                 randomAccessFileMap.put(bucket, new RandomAccessFile(PATH + bucket, "rw"));
-                deflatePosition.put(bucket, new ArrayList<>());
+                deflatePosition.put(bucket, new ConcurrentLinkedQueue<>());
             }
             RandomAccessFile randomAccessFile = randomAccessFileMap.get(bucket);
-            ArrayList<Integer> list = deflatePosition.get(bucket);
+            ConcurrentLinkedQueue<Integer> list = deflatePosition.get(bucket);
             randomAccessFile.write(deflateBuf, 0, size);
             list.add(size);
         } catch (IOException e) {
@@ -574,7 +571,6 @@ public class MessageStore {
         byteBuffer.clear();
 
     }
-
 
     private class WriteToFile implements Runnable {
         private String bucket;
