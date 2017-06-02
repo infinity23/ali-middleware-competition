@@ -178,22 +178,22 @@ public class MessageStore {
 //            e.printStackTrace();
 //        }
 
-//    public synchronized void putMessage(String bucket, byte[] bytes){
-//        if (!resultData.containsKey(bucket)) {
-//            resultData.put(bucket, new ByteArrayOutputStream(FILE_BLOCK));
+    public synchronized void putMessage(String bucket, byte[] bytes){
+        if (!cacheMap.containsKey(bucket)) {
+            cacheMap.put(bucket, ByteBuffer.allocate(FILE_BLOCK));
+        }
+//        synchronized (this) {
+            try {
+                ByteBuffer byteBuffer = cacheMap.get(bucket);
+                if(FILE_BLOCK - byteBuffer.position() < bytes.length){
+                    writeToFile(bucket,byteBuffer);
+                }
+                byteBuffer.put(bytes);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
 //        }
-////        synchronized (this) {
-//            try {
-//                ByteArrayOutputStream byteArrayOutputStream = resultData.get(bucket);
-//                if(FILE_BLOCK - byteArrayOutputStream.size() < bytes.length){
-//                    writeToFile(bucket,byteArrayOutputStream);
-//                }
-//                byteArrayOutputStream.write(bytes);
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            }
-////        }
-//    }
+    }
 
 
     public void putMessage(String bucket, Message message) {

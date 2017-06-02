@@ -135,20 +135,20 @@ public class DefaultProducer implements Producer {
 
         //交到messagestore统一处理
 //        messageStore.putMessage(bucket, message);
-//        messageStore.putMessage(bucket, MessageUtil.write(message));
+        messageStore.putMessage(bucket, MessageUtil.write(message));
 
 
         //缓存数据再交ms
-        if (!resultData.containsKey(bucket)) {
-            ByteBuffer byteBuffer = ByteBuffer.allocateDirect(CACHE_SIZE);
-            resultData.put(bucket, byteBuffer);
-        }
-        byte[] bytes = MessageUtil.write(message);
-        ByteBuffer byteBuffer = resultData.get(bucket);
-        if (CACHE_SIZE - byteBuffer.position() < bytes.length) {
-            messageStore.flush(bucket,byteBuffer);
-        }
-        byteBuffer.put(bytes);
+//        if (!resultData.containsKey(bucket)) {
+//            ByteBuffer byteBuffer = ByteBuffer.allocateDirect(CACHE_SIZE);
+//            resultData.put(bucket, byteBuffer);
+//        }
+//        byte[] bytes = MessageUtil.write(message);
+//        ByteBuffer byteBuffer = resultData.get(bucket);
+//        if (CACHE_SIZE - byteBuffer.position() < bytes.length) {
+//            messageStore.flush(bucket,byteBuffer);
+//        }
+//        byteBuffer.put(bytes);
 
 
         //缓存数据再交ms(压缩版)
@@ -211,10 +211,10 @@ public class DefaultProducer implements Producer {
     @Override
     public void flush() {
 //        集中压缩版
-        messageStore.flush(resultData);
-        for(Map.Entry<String, ByteBuffer> entry : resultData.entrySet()){
-            messageStore.flush(entry.getKey(), entry.getValue());
-        }
+//        messageStore.flush(resultData);
+//        for(Map.Entry<String, ByteBuffer> entry : resultData.entrySet()){
+//            messageStore.flush(entry.getKey(), entry.getValue());
+//        }
         CyclicBarrier cyclicBarrier = messageStore.getCyclicBarrier();
         try {
             cyclicBarrier.await();
