@@ -8,6 +8,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.Deflater;
 
@@ -31,7 +33,7 @@ public class MessageStore {
     //    private volatile long totalNum;
 //    private volatile boolean flushing;
 //
-//    private ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private ExecutorService executorService = Executors.newSingleThreadExecutor();
 
 
 //    private Map<String, ObjectOutputStream> objectOutputStreamMap = new ConcurrentHashMap<>(100);
@@ -466,10 +468,6 @@ public class MessageStore {
 //        // 对应缓存数据版本(压缩版)
         try {
             for (String bucket : resultData.keySet()) {
-//                if (!mappedByteBufferMap.containsKey(bucket)) {
-//                    MappedByteBuffer mappedByteBuffer = new RandomAccessFile(PATH + bucket, "rw").getChannel().map(FileChannel.MapMode.READ_WRITE, 0L, FILE_BLOCK);
-//                    mappedByteBufferMap.put(bucket, mappedByteBuffer);
-//                }
                 if (!cacheMap.containsKey(bucket)) {
                     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(FILE_BLOCK);
                     cacheMap.put(bucket, byteArrayOutputStream);
@@ -489,7 +487,7 @@ public class MessageStore {
 //
     }
 
-    private void writeToFile(String bucket, ByteArrayOutputStream cache) throws IOException {
+    public synchronized void writeToFile(String bucket, ByteArrayOutputStream cache) throws IOException {
         if (!randomAccessFileMap.containsKey(bucket)) {
             randomAccessFileMap.put(bucket, new RandomAccessFile(PATH + bucket, "rw"));
             deflatePosition.put(bucket, new ArrayList<>());
@@ -531,6 +529,21 @@ public class MessageStore {
         }
     }
 
+    public synchronized void writeToFile(String bucket, byte[] deflateBuf, int size) {
+        try {
+            if (!randomAccessFileMap.containsKey(bucket)) {
+                randomAccessFileMap.put(bucket, new RandomAccessFile(PATH + bucket, "rw"));
+                deflatePosition.put(bucket, new ArrayList<>());
+            }
+            RandomAccessFile randomAccessFile = randomAccessFileMap.get(bucket);
+            ArrayList<Integer> list = deflatePosition.get(bucket);
+            randomAccessFile.write(deflateBuf, 0, size);
+            list.add(size);
+        }catch (IOException e){
+            e.printStackTrace();
+        }
+    }
+
 
     //压缩版本
 //    public synchronized void flush(Map<String, byte[]> deflateMap, Map<String, Integer> deflateSizeMap){
@@ -558,6 +571,7 @@ public class MessageStore {
 //    }
 
 }
+
 
 
 

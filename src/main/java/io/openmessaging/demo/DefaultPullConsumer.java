@@ -400,7 +400,7 @@ public class DefaultPullConsumer implements PullConsumer {
 
 
 
-        //RAF压缩分段读到cache(带解压缩)
+        //RAF压缩索引分段读到cache(带解压缩)
         try {
             if (index != 0 && index < positionList.size()) {
                 int position = positionList.get(index++);
@@ -611,6 +611,7 @@ public class DefaultPullConsumer implements PullConsumer {
         bucketList.addAll(topics);
         it = bucketList.iterator();
 
+        //初始化deflatePosition
         try {
             FileInputStream fileInputStream = new FileInputStream(PATH + "index");
             ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);

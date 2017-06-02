@@ -12,18 +12,19 @@ import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 
 public class DefaultProducer implements Producer {
-//    private static Random random = new Random(System.currentTimeMillis());
+    //    private static Random random = new Random(System.currentTimeMillis());
     public static final int MESS_MAX = 10000;
     public static final int BUCKET_SIZE = 1024 * 1024 * 100;
-    private static final int CACHE_SIZE = 1024 * 512                                                                                                                                                                                                                                                                                                                                        ;
-//    private static final int CACHE_SIZE = 1024 * 512 * (random.nextInt(5) + 1);
+    private static final int CACHE_SIZE = 1024 * 512;
+//    private static final int CACHE_SIZE = 1024 * 1024 * 2;
+    //    private static final int CACHE_SIZE = 1024 * 512 * (random.nextInt(5) + 1);
     private static int level = 1;
-//    private static final int CACHE_SIZE = 1024 * 512 * level++;
+    //    private static final int CACHE_SIZE = 1024 * 512 * level++;
 //    private static final int CACHE_SIZE = 1024 * 1024 * 5;
     //    private static final long SLEEP_TIME = 10;
     private MessageFactory messageFactory = new DefaultMessageFactory();
     private MessageStore messageStore;
-//    private Map<String, LinkedList<Message>> resultMap = new HashMap<>(100);
+    //    private Map<String, LinkedList<Message>> resultMap = new HashMap<>(100);
 //    private static Map<String, Long> position = new ConcurrentHashMap<>(100);
 //    private Map<String, RandomAccessFile> randomAccessFileMap = new HashMap<>(100);
     private static String PATH;
@@ -40,8 +41,8 @@ public class DefaultProducer implements Producer {
 
     private Deflater compresser = new Deflater(Deflater.BEST_SPEED);
     private Map<String, DeflaterOutputStream> deflaterOuputStreamMap = new HashMap<>(100);
-    private Map<String, byte[]> deflateMap = new HashMap<>(100);
-    private Map<String,Integer> deflaterSizeMap = new HashMap<>(100);
+    private Map<String, ByteArrayOutputStream> cacheMap = new HashMap<>(100);
+    private byte[] deflaterBuf = new byte[CACHE_SIZE];
 
     public DefaultProducer(KeyValue properties) {
         this.properties = properties;
@@ -137,7 +138,6 @@ public class DefaultProducer implements Producer {
 //        messageStore.putMessage(bucket, MessageUtil.write(message));
 
 
-
         //缓存数据再交ms
         if (!resultData.containsKey(bucket)) {
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(CACHE_SIZE);
@@ -156,24 +156,24 @@ public class DefaultProducer implements Producer {
 
 
         //缓存数据再交ms(压缩版)
-//        if (!deflateMap.containsKey(bucket)) {
-//            byte[] deflateBuf = new byte[CACHE_SIZE];
-//            deflateMap.put(bucket, deflateBuf);
-//            deflaterSizeMap.put(bucket, 0);
+//        if (!cacheMap.containsKey(bucket)) {
+//            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(CACHE_SIZE);
+//            cacheMap.put(bucket, byteArrayOutputStream);
 //        }
+//        ByteArrayOutputStream byteArrayOutputStream = cacheMap.get(bucket);
 //        byte[] bytes = MessageUtil.write(message);
-//        int deflaterSize = deflaterSizeMap.get(bucket);
-//        if(CACHE_SIZE - deflaterSize < 100){
-//            messageStore.flush(deflateMap,deflaterSizeMap);
-//            deflaterSize = 0;
+//        if (CACHE_SIZE - byteArrayOutputStream.size() < bytes.length) {
+//            compresser.setInput(byteArrayOutputStream.toByteArray());
+//            compresser.finish();
+//            int size = compresser.deflate(deflaterBuf);
+//            compresser.reset();
+//            messageStore.writeToFile(bucket,deflaterBuf,size);
 //        }
-//        byte[] deflaterBuf = deflateMap.get(bucket);
-//        compresser.setInput(bytes);
-//        compresser.finish();
-//        deflaterSize += compresser.deflate(deflaterBuf,deflaterSize,100);
-//        compresser.reset();
-//
-//        deflaterSizeMap.put(bucket, deflaterSize);
+//        try {
+//            byteArrayOutputStream.write(bytes);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
     }
 
     @Override
@@ -214,6 +214,7 @@ public class DefaultProducer implements Producer {
     //用于被kill之前刷新到硬盘
     @Override
     public void flush() {
+//        集中压缩版
         messageStore.flush(resultData);
         CyclicBarrier cyclicBarrier = messageStore.getCyclicBarrier();
         try {
@@ -221,7 +222,28 @@ public class DefaultProducer implements Producer {
         } catch (InterruptedException | BrokenBarrierException e) {
             e.printStackTrace();
         }
-//        messageStore.flush(deflateMap,deflaterSizeMap);
+
+        //分散压缩版
+//        for (Map.Entry<String, ByteArrayOutputStream> entry : cacheMap.entrySet()) {
+//            byte[] bytes = entry.getValue().toByteArray();
+//            compresser.setInput(bytes);
+//            compresser.finish();
+//            int size = compresser.deflate(deflaterBuf);
+//            compresser.reset();
+//            messageStore.writeToFile(entry.getKey(), deflaterBuf, size);
+//        }
+
+
+
+
+
+
+
+
+
+
+
+//        messageStore.flush(cacheMap,cacheSizeMap);
 //        System.out.println("刷新到硬盘");
 //        long start = System.currentTimeMillis();
         //原版
