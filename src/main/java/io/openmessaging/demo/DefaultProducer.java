@@ -15,7 +15,7 @@ public class DefaultProducer implements Producer {
     //    private static Random random = new Random(System.currentTimeMillis());
     public static final int MESS_MAX = 10000;
     public static final int BUCKET_SIZE = 1024 * 1024 * 100;
-    private static final int CACHE_SIZE = 1024 * 1024;
+    private static final int CACHE_SIZE = 1024 * 512;
     //    private static final int CACHE_SIZE = 1024 * 1024 * 2;
     //    private static final int CACHE_SIZE = 1024 * 512 * (random.nextInt(5) + 1);
     private static int level = 1;
