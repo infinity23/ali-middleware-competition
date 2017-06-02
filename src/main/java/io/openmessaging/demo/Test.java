@@ -1,5 +1,8 @@
 package io.openmessaging.demo;
 
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+
 public class Test {
     @org.junit.Test
     public void mapTest(){
@@ -17,8 +20,16 @@ public class Test {
 //        } catch (IOException e) {
 //            e.printStackTrace();
 //        }
-        char c = 31;
-        System.out.println(c);
+//        char c = 31;
+//        System.out.println(c);
+
+        ByteBuffer byteBuffer = ByteBuffer.allocateDirect(5);
+        byte[] bytes = new byte[]{1,2,3,4,5};
+        byteBuffer.put(bytes);
+        ByteBuffer byteBuffer1 = ByteBuffer.allocate(5);
+        byteBuffer1.put(byteBuffer);
+        System.out.println(Arrays.toString(byteBuffer1.array()));
+        System.out.println(Arrays.toString(bytes));
 //
 //        byte b = (byte) c;
 //

@@ -3,13 +3,11 @@ package io.openmessaging.demo;
 import io.openmessaging.Message;
 
 import java.io.*;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.Deflater;
 
@@ -19,9 +17,9 @@ public class MessageStore {
     //    private static final long MAX_MESS_NUM = 1024 * 1024 * 10;
     private static final long MAX_MESS_NUM = 50000;
     private static final long SLEEP_TIME = 10;
-    public static final int CACHE_SIZE = 1024 * 512;
+    public static final int CACHE_SIZE = 1024 * 1024;
     //    public static final int FILE_BLOCK = 1024 * 1024 * 40;
-    public static final int FILE_BLOCK = 1024 * 1024 * 10;
+    public static final int FILE_BLOCK = 1024 * 1024 * 20;
     public static final int DEFLATE_BLOCK = FILE_BLOCK / 5;
     private static final int APPEND_BLOCK = 1024 * 1024 * 10;
     private static MessageStore instance;
@@ -43,7 +41,7 @@ public class MessageStore {
 //    private Map<String, MappedByteBuffer> mappedByteBufferMap = new ConcurrentHashMap<>(100);
 
     private Map<String, RandomAccessFile> randomAccessFileMap = new ConcurrentHashMap<>(100);
-    private Map<String, ByteArrayOutputStream> cacheMap = new HashMap<>(100);
+    private Map<String, ByteBuffer> cacheMap = new HashMap<>(100);
     private Deflater deflater = new Deflater(1);
     private Map<String, ArrayList<Integer>> deflatePosition = new HashMap<>(100);
 
@@ -368,7 +366,7 @@ public class MessageStore {
 //    }
 
 
-    public synchronized void flush(Map<String, ByteArrayOutputStream> resultData) {
+    public synchronized void flush(Map<String, ByteBuffer> resultData) {
 //
 ////        long writeObjectTime = 0;
 ////        long writeFileTime = 0;
@@ -466,28 +464,33 @@ public class MessageStore {
 
 
 //        // 对应缓存数据版本(压缩版)
-        try {
-            for (String bucket : resultData.keySet()) {
-                if (!cacheMap.containsKey(bucket)) {
-                    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(FILE_BLOCK);
-                    cacheMap.put(bucket, byteArrayOutputStream);
-                }
-                ByteArrayOutputStream cache = cacheMap.get(bucket);
-                if (FILE_BLOCK - cache.size() < CACHE_SIZE) {
-                    writeToFile(bucket, cache);
-                }
-                ByteArrayOutputStream byteArrayOutputStream = resultData.get(bucket);
-                cache.write(byteArrayOutputStream.toByteArray());
-                byteArrayOutputStream.reset();
-            }
+//        try {
+//            for (String bucket : resultData.keySet()) {
+//                if (!cacheMap.containsKey(bucket)) {
+//                    ByteBuffer byteBuffer = ByteBuffer.allocate(FILE_BLOCK);
+//                    cacheMap.put(bucket, byteBuffer);
+//                }
+//                ByteBuffer cache = cacheMap.get(bucket);
+//                if (FILE_BLOCK - cache.position() < CACHE_SIZE) {
+//                    executorService.execute(new WriteToFile(bucket, cache));
+//                    cache = ByteBuffer.allocate(FILE_BLOCK);
+////                    writeToFile(bucket, cache);
+//                }
+//                ByteBuffer byteBuffer = resultData.get(bucket);
+//                byteBuffer.flip();
+//                while(byteBuffer.hasRemaining()){
+//                    cache.put(byteBuffer.get());
+//                }
+//                byteBuffer.clear();
+//            }
 
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-//
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+
     }
 
-    public synchronized void writeToFile(String bucket, ByteArrayOutputStream cache) throws IOException {
+    private void writeToFile(String bucket, ByteBuffer cache) throws IOException {
         if (!randomAccessFileMap.containsKey(bucket)) {
             randomAccessFileMap.put(bucket, new RandomAccessFile(PATH + bucket, "rw"));
             deflatePosition.put(bucket, new ArrayList<>());
@@ -496,20 +499,23 @@ public class MessageStore {
         ArrayList<Integer> list = deflatePosition.get(bucket);
 //        MappedByteBuffer mappedByteBuffer = randomAccessFile.getChannel().map(FileChannel.MapMode.READ_WRITE, randomAccessFile.length(), DEFLATE_BLOCK);
         byte[] deflateBuf = new byte[FILE_BLOCK];
-        deflater.setInput(cache.toByteArray());
+        deflater.setInput(cache.array(), 0, cache.position());
         deflater.finish();
         int deflateSize = deflater.deflate(deflateBuf);
         deflater.reset();
-        randomAccessFile.write(deflateBuf,0,deflateSize);
+        randomAccessFile.write(deflateBuf, 0, deflateSize);
         list.add(deflateSize);
 //        mappedByteBuffer.put(deflateBuf);
 //        randomAccessFile.close();
-        cache.reset();
+        cache.clear();
     }
 
     private void end() {
 
-        for (Map.Entry<String, ByteArrayOutputStream> entry : cacheMap.entrySet()) {
+        for (Map.Entry<String, ByteBuffer> entry : cacheMap.entrySet()) {
+
+//            executorService.execute(new WriteToFile(entry.getKey(), entry.getValue()));
+
             try {
                 writeToFile(entry.getKey(), entry.getValue());
             } catch (IOException e) {
@@ -529,7 +535,7 @@ public class MessageStore {
         }
     }
 
-    public synchronized void writeToFile(String bucket, byte[] deflateBuf, int size) {
+    private void writeToFile(String bucket, byte[] deflateBuf, int size) {
         try {
             if (!randomAccessFileMap.containsKey(bucket)) {
                 randomAccessFileMap.put(bucket, new RandomAccessFile(PATH + bucket, "rw"));
@@ -539,38 +545,58 @@ public class MessageStore {
             ArrayList<Integer> list = deflatePosition.get(bucket);
             randomAccessFile.write(deflateBuf, 0, size);
             list.add(size);
-        }catch (IOException e){
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
 
-    //压缩版本
-//    public synchronized void flush(Map<String, byte[]> deflateMap, Map<String, Integer> deflateSizeMap){
-//        try {
-//            for (String bucket : deflateMap.keySet()) {
-//                if (!mappedByteBufferMap.containsKey(bucket)) {
-//                    MappedByteBuffer mappedByteBuffer = new RandomAccessFile(PATH + bucket, "rw").getChannel().map(FileChannel.MapMode.READ_WRITE, 0L, FILE_BLOCK);
-//                    mappedByteBufferMap.put(bucket, mappedByteBuffer);
-//                }
-//                mappedByteBuffer = mappedByteBufferMap.get(bucket);
-//                if ((mappedByteBuffer.capacity() - mappedByteBuffer.position()) < CACHE_SIZE) {
-//                    FileChannel fileChannel = new RandomAccessFile(PATH + bucket, "rw").getChannel();
-//                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, fileChannel.size(), FILE_BLOCK);
-//                    mappedByteBufferMap.put(bucket, mappedByteBuffer);
-//                }
-//
-//                int deflateSize = deflateSizeMap.get(bucket);
-//                byte[] deflateBuf = deflateMap.get(bucket);
-//                mappedByteBuffer.put(deflateBuf,0,deflateSize);
-//            }
-//
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }
+    // 对应缓存数据版本(压缩版) 一次接受一个bucket
+    public synchronized void flush(String bucket, ByteBuffer byteBuffer) {
+        if (!cacheMap.containsKey(bucket)) {
+            ByteBuffer cache = ByteBuffer.allocate(FILE_BLOCK);
+            cacheMap.put(bucket, cache);
+        }
+        ByteBuffer cache = cacheMap.get(bucket);
+        if (FILE_BLOCK - cache.position() < CACHE_SIZE) {
+//            executorService.execute(new WriteToFile(bucket, cache));
+//            cache = ByteBuffer.allocate(FILE_BLOCK);
+                try {
+                    writeToFile(bucket, cache);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+        }
+        byteBuffer.flip();
+        while (byteBuffer.hasRemaining()) {
+            cache.put(byteBuffer.get());
+        }
+        byteBuffer.clear();
 
+    }
+
+
+    private class WriteToFile implements Runnable {
+        private String bucket;
+        private ByteBuffer cache;
+
+        public WriteToFile(String bucket, ByteBuffer cache) {
+            this.bucket = bucket;
+            this.cache = cache;
+        }
+
+        @Override
+        public void run() {
+            Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
+            try {
+                writeToFile(bucket, cache);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 }
+
 
 
 

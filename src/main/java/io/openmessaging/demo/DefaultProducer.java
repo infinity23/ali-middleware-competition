@@ -3,7 +3,7 @@ package io.openmessaging.demo;
 import io.openmessaging.*;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BrokenBarrierException;
@@ -15,8 +15,8 @@ public class DefaultProducer implements Producer {
     //    private static Random random = new Random(System.currentTimeMillis());
     public static final int MESS_MAX = 10000;
     public static final int BUCKET_SIZE = 1024 * 1024 * 100;
-    private static final int CACHE_SIZE = 1024 * 512;
-//    private static final int CACHE_SIZE = 1024 * 1024 * 2;
+    private static final int CACHE_SIZE = 1024 * 1024;
+    //    private static final int CACHE_SIZE = 1024 * 1024 * 2;
     //    private static final int CACHE_SIZE = 1024 * 512 * (random.nextInt(5) + 1);
     private static int level = 1;
     //    private static final int CACHE_SIZE = 1024 * 512 * level++;
@@ -34,7 +34,7 @@ public class DefaultProducer implements Producer {
 //
 //    private Map<String, MappedByteBuffer> mappedByteBufferMap = new HashMap<>();
 
-    private Map<String, ByteArrayOutputStream> resultData = new HashMap<>(100);
+    private Map<String, ByteBuffer> resultData = new HashMap<>(100);
 
     private int messNum;
 
@@ -140,19 +140,15 @@ public class DefaultProducer implements Producer {
 
         //缓存数据再交ms
         if (!resultData.containsKey(bucket)) {
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(CACHE_SIZE);
-            resultData.put(bucket, byteArrayOutputStream);
+            ByteBuffer byteBuffer = ByteBuffer.allocateDirect(CACHE_SIZE);
+            resultData.put(bucket, byteBuffer);
         }
         byte[] bytes = MessageUtil.write(message);
-        ByteArrayOutputStream byteArrayOutputStream = resultData.get(bucket);
-        if(CACHE_SIZE - byteArrayOutputStream.size() < bytes.length){
-            messageStore.flush(resultData);
+        ByteBuffer byteBuffer = resultData.get(bucket);
+        if (CACHE_SIZE - byteBuffer.position() < bytes.length) {
+            messageStore.flush(bucket,byteBuffer);
         }
-        try {
-            byteArrayOutputStream.write(bytes);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        byteBuffer.put(bytes);
 
 
         //缓存数据再交ms(压缩版)
@@ -216,6 +212,9 @@ public class DefaultProducer implements Producer {
     public void flush() {
 //        集中压缩版
         messageStore.flush(resultData);
+        for(Map.Entry<String, ByteBuffer> entry : resultData.entrySet()){
+            messageStore.flush(entry.getKey(), entry.getValue());
+        }
         CyclicBarrier cyclicBarrier = messageStore.getCyclicBarrier();
         try {
             cyclicBarrier.await();
@@ -232,15 +231,6 @@ public class DefaultProducer implements Producer {
 //            compresser.reset();
 //            messageStore.writeToFile(entry.getKey(), deflaterBuf, size);
 //        }
-
-
-
-
-
-
-
-
-
 
 
 //        messageStore.flush(cacheMap,cacheSizeMap);
