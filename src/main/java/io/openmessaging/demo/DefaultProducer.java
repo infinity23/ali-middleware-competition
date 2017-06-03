@@ -9,22 +9,24 @@ import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.zip.Deflater;
 
+import static io.openmessaging.demo.Constant.CACHE_SIZE;
+
 public class DefaultProducer implements Producer {
-    //    private static Random random = new Random(System.currentTimeMillis());
+//        private static Random random = new Random(System.currentTimeMillis());
 //    public static final int MESS_MAX = 10000;
 //    public static final int BUCKET_SIZE = 1024 * 1024 * 100;
     //    private static final int CACHE_SIZE = 1024 * 1024 * 2;
-    //    private static final int CACHE_SIZE = 1024 * 512 * (random.nextInt(5) + 1);
-    private static int level = 1;
-        private static final int CACHE_SIZE = 1024 * 512 * level++;
-//    private static final int CACHE_SIZE = 1024 * 1024 * 5;
+//        private static final int CACHE_SIZE = 1024 * 512 * (random.nextInt(5) + 1);
+//    private static int level = 1;
+//    private final int CACHE_SIZE = 1024 * 512 * (level++);
+    //    private static final int CACHE_SIZE = 1024 * 1024 * 5;
     //    private static final long SLEEP_TIME = 10;
     private MessageFactory messageFactory = new DefaultMessageFactory();
     private MessageStore messageStore;
     //    private Map<String, LinkedList<Message>> resultMap = new HashMap<>(100);
 //    private static Map<String, Long> position = new ConcurrentHashMap<>(100);
 //    private Map<String, RandomAccessFile> randomAccessFileMap = new HashMap<>(100);
-    private static String PATH;
+//    private static String PATH;
 
     private KeyValue properties;
 //    private ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
@@ -46,7 +48,7 @@ public class DefaultProducer implements Producer {
 
     public DefaultProducer(KeyValue properties) {
         this.properties = properties;
-        PATH = properties.getString("STORE_PATH") + "/";
+//        PATH = properties.getString("STORE_PATH") + "/";
 
         messageStore = MessageStore.getInstance(properties.getString("STORE_PATH"));
 
@@ -183,15 +185,15 @@ public class DefaultProducer implements Producer {
 //            }
 //            byteBuffer = ByteBuffer.allocate(CACHE_SIZE);
 
-            compresser.setInput(byteBuffer.array(),0,byteBuffer.position());
+            compresser.setInput(byteBuffer.array(), 0, byteBuffer.position());
             compresser.finish();
             int size = compresser.deflate(deflaterBuf);
             compresser.reset();
-            messageStore.writeToFile(bucket,deflaterBuf,size);
+            messageStore.writeToFile(bucket, deflaterBuf, size);
             byteBuffer.clear();
 
         }
-            byteBuffer.put(bytes);
+        byteBuffer.put(bytes);
     }
 
 //    private class DeflateAndWrite implements Runnable{
@@ -272,7 +274,7 @@ public class DefaultProducer implements Producer {
 
         for (Map.Entry<String, ByteBuffer> entry : cacheMap.entrySet()) {
             ByteBuffer byteBuffer = entry.getValue();
-            compresser.setInput(byteBuffer.array(),0,byteBuffer.position());
+            compresser.setInput(byteBuffer.array(), 0, byteBuffer.position());
             compresser.finish();
             int size = compresser.deflate(deflaterBuf);
             compresser.reset();

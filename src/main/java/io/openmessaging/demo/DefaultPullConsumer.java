@@ -8,13 +8,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.RandomAccessFile;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
 import java.util.*;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
@@ -23,37 +17,37 @@ import static io.openmessaging.demo.Constant.CACHE_SIZE;
 
 public class DefaultPullConsumer implements PullConsumer {
     //    private static final int FILE_BLOCK = 1024 * 1024 * 40;
-    private static final int FILE_BLOCK = 1024 * 1024 * 20;
-    public static final int DEFLATE_BLOCK = FILE_BLOCK / 5;
-    private static final int BYTES_CACHE = FILE_BLOCK * 2;
-    private static final int APPEND_BLOCK = 1024 * 1024 * 10;
-    public static final int MESS_CACHE = 50000;
+//    private static final int FILE_BLOCK = 1024 * 1024 * 20;
+//    public static final int DEFLATE_BLOCK = FILE_BLOCK / 5;
+//    private static final int BYTES_CACHE = FILE_BLOCK * 2;
+//    private static final int APPEND_BLOCK = 1024 * 1024 * 10;
+//    public static final int MESS_CACHE = 50000;
     private KeyValue properties;
-    private String queue;
+//    private String queue;
     //    private Set<String> buckets = new HashSet<>();
     private List<String> bucketList = new ArrayList<>();
     //    private HashMap<String, Integer> messIdx = new HashMap<>();
 //
 //    private int lastIndex = 0;
 //    private List<Message> resultList;
-    private String bucket;
+//    private String bucket;
     private Iterator<String> it;
     //    private int finishedNum;
 //    private boolean first;
 //    private List<String> topicList;
-    private MappedByteBuffer mappedByteBuffer;
-    private int mark = 0;
+//    private MappedByteBuffer mappedByteBuffer;
+//    private int mark = 0;
     private int position = 0;
     private int lastPositin = -1;
 
     private String PATH;
-    private FileChannel fileChannel;
+//    private FileChannel fileChannel;
 
-    private MessageStore messageStore;
+//    private MessageStore messageStore;
 
     private Map<String, LinkedList<Integer>> deflatePosition;
-    private ExecutorService executorService = Executors.newSingleThreadExecutor();
-    private BlockingQueue<byte[]> cacheQueue = new LinkedBlockingQueue<>(2);
+//    private ExecutorService executorService = Executors.newSingleThreadExecutor();
+//    private BlockingQueue<byte[]> cacheQueue = new LinkedBlockingQueue<>(2);
 //    private BlockingQueue<byte[]> messQueue = new LinkedBlockingQueue<>(MESS_CACHE);
 
 //    private ArrayList<Message> messList;
@@ -67,7 +61,7 @@ public class DefaultPullConsumer implements PullConsumer {
     private int n;
 
     private byte[] cache;
-    private byte[] cache2;
+//    private byte[] cache2;
 
     private int cached;
 
@@ -78,7 +72,7 @@ public class DefaultPullConsumer implements PullConsumer {
     //    private CyclicBarrier cyclicBarrier;
 //    private boolean done;
 //    private Map<String, Long> positionMap = new HashMap<>(100);
-    private long mPosition;
+//    private long mPosition;
     private byte[] fileCache;
 //
 //    public void setCyclicBarrier(CyclicBarrier cyclicBarrier) {
@@ -88,7 +82,7 @@ public class DefaultPullConsumer implements PullConsumer {
     public DefaultPullConsumer(KeyValue properties) {
         this.properties = properties;
         PATH = properties.getString("STORE_PATH") + "/";
-        messageStore = MessageStore.getInstance(PATH);
+//        messageStore = MessageStore.getInstance(PATH);
 //        thisThread = Thread.currentThread();
     }
 
@@ -98,12 +92,6 @@ public class DefaultPullConsumer implements PullConsumer {
         return properties;
     }
 
-    long readToMessageTime = 0;
-
-    private int index;
-
-    private byte[] thisCache;
-    private boolean done;
 
     @Override
     public Message poll() {
@@ -419,7 +407,6 @@ public class DefaultPullConsumer implements PullConsumer {
 
             if (it.hasNext()) {
                 cached = 0;
-                index = 0;
                 String bucket = it.next();
                 randomAccessFile = new RandomAccessFile(PATH + bucket, "r");
                 fileCache = new byte[(int) randomAccessFile.length()];
@@ -608,7 +595,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //        if (queue != null && !queue.equals(queueName)) {
 //            throw new ClientOMSException("You have already attached to a queue " + queue);
 //        }
-        queue = queueName;
+//        queue = queueName;
         bucketList.add(queueName);
         bucketList.addAll(topics);
         it = bucketList.iterator();

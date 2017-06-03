@@ -3,13 +3,8 @@ package io.openmessaging.demo;
 import io.openmessaging.BytesMessage;
 import io.openmessaging.Message;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.nio.charset.Charset;
-import java.util.*;
-import java.util.zip.Deflater;
-import java.util.zip.Inflater;
-import java.util.zip.InflaterOutputStream;
+import java.util.Map;
 
 public class MessageUtil {
 
@@ -20,8 +15,8 @@ public class MessageUtil {
 //    private static final char COM = ',';
     private static final char EQU = '=';
 
-    private static final Deflater compressor = new Deflater(1);
-    private static final Inflater uncompressor = new Inflater();
+//    private static final Deflater compressor = new Deflater(1);
+//    private static final Inflater uncompressor = new Inflater();
 
     public static byte[] write(Message message) {
         BytesMessage bytesMessage = (BytesMessage) message;
@@ -158,26 +153,26 @@ public class MessageUtil {
 
 
 
-    public static void compress(byte[] input, ByteArrayOutputStream byteArrayOutputStream){
-//        DeflaterOutputStream deflaterOutputStream = new DeflaterOutputStream(byteArrayOutputStream,compressor);
+//    public static void compress(byte[] input, ByteArrayOutputStream byteArrayOutputStream){
+////        DeflaterOutputStream deflaterOutputStream = new DeflaterOutputStream(byteArrayOutputStream,compressor);
+////        try {
+////            deflaterOutputStream.write(input);
+////        } catch (IOException e) {
+////            e.printStackTrace();
+////        }
+//
+//
+//
+//    }
+
+//    public static void uncompress(byte[] input, ByteArrayOutputStream byteArrayOutputStream){
+//        InflaterOutputStream inflaterOutputStream = new InflaterOutputStream(byteArrayOutputStream, uncompressor);
 //        try {
-//            deflaterOutputStream.write(input);
+//            inflaterOutputStream.write(input);
 //        } catch (IOException e) {
 //            e.printStackTrace();
 //        }
-
-
-
-    }
-
-    public static void uncompress(byte[] input, ByteArrayOutputStream byteArrayOutputStream){
-        InflaterOutputStream inflaterOutputStream = new InflaterOutputStream(byteArrayOutputStream, uncompressor);
-        try {
-            inflaterOutputStream.write(input);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+//    }
 
 
 
@@ -185,19 +180,19 @@ public class MessageUtil {
 
 
 
-    //HashMap排序
-    public static <K, V extends Comparable<? super V>> Map<K, V>
-    sortByValue(Map<K, V> map) {
-        List<Map.Entry<K, V>> list =
-                new LinkedList<>(map.entrySet());
-        list.sort(Comparator.comparing(o -> (o.getValue())));
-
-        Map<K, V> result = new LinkedHashMap<>();
-        for (Map.Entry<K, V> entry : list) {
-            result.put(entry.getKey(), entry.getValue());
-        }
-        return result;
-    }
+//    //HashMap排序
+//    public static <K, V extends Comparable<? super V>> Map<K, V>
+//    sortByValue(Map<K, V> map) {
+//        List<Map.Entry<K, V>> list =
+//                new LinkedList<>(map.entrySet());
+//        list.sort(Comparator.comparing(o -> (o.getValue())));
+//
+//        Map<K, V> result = new LinkedHashMap<>();
+//        for (Map.Entry<K, V> entry : list) {
+//            result.put(entry.getKey(), entry.getValue());
+//        }
+//        return result;
+//    }
 
 
 //  //整数到字节数组的转换

@@ -1,31 +1,26 @@
 package io.openmessaging.demo;
 
-import io.openmessaging.Message;
-
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.zip.Deflater;
-
-import static io.openmessaging.demo.Constant.CACHE_SIZE;
 
 public class MessageStore {
 
-    private static final long MAX_FREE_MEMORY = 1024 * 1024 * 1024L;
+//    private static final long MAX_FREE_MEMORY = 1024 * 1024 * 1024L;
     //    private static final long MAX_MESS_NUM = 1024 * 1024 * 10;
-    private static final long MAX_MESS_NUM = 50000;
-    private static final long SLEEP_TIME = 10;
+//    private static final long MAX_MESS_NUM = 50000;
+//    private static final long SLEEP_TIME = 10;
     //    public static final int FILE_BLOCK = 1024 * 1024 * 40;
-    public static final int FILE_BLOCK = 1024 * 1024 * 20;
-    public static final int DEFLATE_BLOCK = FILE_BLOCK / 5;
-    private static final int APPEND_BLOCK = 1024 * 1024 * 10;
+//    public static final int FILE_BLOCK = 1024 * 1024 * 20;
+//    public static final int DEFLATE_BLOCK = FILE_BLOCK / 5;
+//    private static final int APPEND_BLOCK = 1024 * 1024 * 10;
     private static MessageStore instance;
     //    public static final String PATH = "E:/Major/Open-Messaging/";
     public static String PATH;
@@ -45,7 +40,7 @@ public class MessageStore {
 //    private Map<String, MappedByteBuffer> mappedByteBufferMap = new ConcurrentHashMap<>(100);
 
     private Map<String, RandomAccessFile> randomAccessFileMap = new ConcurrentHashMap<>(100);
-    private Map<String, ByteBuffer> cacheMap = new ConcurrentHashMap<>(100);
+//    private Map<String, ByteBuffer> cacheMap = new ConcurrentHashMap<>(100);
 //    private Deflater deflater = new Deflater(1);
     private Map<String, LinkedList<Integer>> deflatePosition = new HashMap<>(100);
 
@@ -177,105 +172,105 @@ public class MessageStore {
 //            e.printStackTrace();
 //        }
 
-    public void putMessage(String bucket, byte[] bytes){
-        synchronized (bucket.intern()) {
-            if (!cacheMap.containsKey(bucket)) {
-                cacheMap.put(bucket, ByteBuffer.allocate(FILE_BLOCK));
-            }
-                ByteBuffer cache = cacheMap.get(bucket);
-                if(FILE_BLOCK - cache.position() < bytes.length){
-                    try {
-                        writeToFile(bucket,cache);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-//                    executorService.execute(new WriteToFile(bucket,byteBuffer));
-//                    byteBuffer = ByteBuffer.allocate(FILE_BLOCK);
-                }
-            cache.put(bytes);
-        }
-    }
-
-
-    public void putMessage(String bucket, Message message) {
-
-
-        //直接缓存版本
-//        if (!resultMap.containsKey(bucket)) {
-//            resultMap.put(bucket, new ConcurrentLinkedQueue<>());
+//    public void putMessage(String bucket, byte[] bytes){
+//        synchronized (bucket.intern()) {
+//            if (!cacheMap.containsKey(bucket)) {
+//                cacheMap.put(bucket, ByteBuffer.allocate(FILE_BLOCK));
+//            }
+//                ByteBuffer cache = cacheMap.get(bucket);
+//                if(FILE_BLOCK - cache.position() < bytes.length){
+//                    try {
+//                        writeToFile(bucket,cache);
+//                    } catch (IOException e) {
+//                        e.printStackTrace();
+//                    }
+////                    executorService.execute(new WriteToFile(bucket,byteBuffer));
+////                    byteBuffer = ByteBuffer.allocate(FILE_BLOCK);
+//                }
+//            cache.put(bytes);
 //        }
+//    }
+
+
+//    public void putMessage(String bucket, Message message) {
 //
-////        synchronized (this) {
-//            ConcurrentLinkedQueue<Message> queue = resultMap.get(bucket);
-//            queue.add(message);
+//
+//        //直接缓存版本
+////        if (!resultMap.containsKey(bucket)) {
+////            resultMap.put(bucket, new ConcurrentLinkedQueue<>());
+////        }
+////
+//////        synchronized (this) {
+////            ConcurrentLinkedQueue<Message> queue = resultMap.get(bucket);
+////            queue.add(message);
+//////        }
+////
+////        messNum.getAndIncrement();
+////
+////        while (messNum.get()> 100000) {
+////            synchronized (this) {
+////                while (messNum.get() > 100000) {
+////                    flush();
+////                }
+////            }
 ////        }
 //
-//        messNum.getAndIncrement();
 //
-//        while (messNum.get()> 100000) {
-//            synchronized (this) {
-//                while (messNum.get() > 100000) {
-//                    flush();
-//                }
-//            }
-//        }
-
-
-//        先转换为数据，缓存数据版本
-
-//        messNum.getAndIncrement();
-//        if (!resultData.containsKey(bucket)) {
-//            resultData.put(bucket, new ByteArrayOutputStream(FILE_BLOCK));
-//        }
+////        先转换为数据，缓存数据版本
+//
+////        messNum.getAndIncrement();
+////        if (!resultData.containsKey(bucket)) {
+////            resultData.put(bucket, new ByteArrayOutputStream(FILE_BLOCK));
+////        }
+////
+////
+////        synchronized (this) {
+////            try {
+////                byte[] bytes = MessageUtil.write(message);
+////                ByteArrayOutputStream byteArrayOutputStream = resultData.get(bucket);
+////                if(FILE_BLOCK - byteArrayOutputStream.size() < bytes.length){
+////                        writeToFile(bucket,byteArrayOutputStream);
+////                }
+////                byteArrayOutputStream.write(bytes);
+////            } catch (IOException e) {
+////                e.printStackTrace();
+////            }
+////        }
 //
 //
-//        synchronized (this) {
-//            try {
-//                byte[] bytes = MessageUtil.write(message);
-//                ByteArrayOutputStream byteArrayOutputStream = resultData.get(bucket);
-//                if(FILE_BLOCK - byteArrayOutputStream.size() < bytes.length){
-//                        writeToFile(bucket,byteArrayOutputStream);
-//                }
-//                byteArrayOutputStream.write(bytes);
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            }
-//        }
-
-
-//        while (messNum.get() > 100000) {
-//            synchronized (this) {
-//                while (messNum.get() > 100000) {
-//                    flush();
-//                }
-//            }
-//        }
-
-
-        //直接写到mappedbuffer版本
-
-//        try {
-//            if (!mappedByteBufferMap.containsKey(bucket)) {
-//                MappedByteBuffer mappedByteBuffer = new RandomAccessFile(PATH + bucket, "rw").getChannel().map(FileChannel.MapMode.READ_WRITE, 0L, 1024 * 1024 * 40);
-//                mappedByteBufferMap.put(bucket, mappedByteBuffer);
-//            }
+////        while (messNum.get() > 100000) {
+////            synchronized (this) {
+////                while (messNum.get() > 100000) {
+////                    flush();
+////                }
+////            }
+////        }
 //
-//            mappedByteBuffer = mappedByteBufferMap.get(bucket);
-//            byte[] bytes = MessageUtil.write(message);
-//            if ((mappedByteBuffer.capacity() - mappedByteBuffer.position()) < bytes.length) {
-//                long lastPosition = position.getOrDefault(bucket,0L);
-//                position.put(bucket, lastPosition + mappedByteBuffer.position());
-//                FileChannel fileChannel = new RandomAccessFile(PATH + bucket, "rw").getChannel();
-//                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, lastPosition + mappedByteBuffer.position(), 1024 * 1024 * 40);
-//                mappedByteBufferMap.put(bucket, mappedByteBuffer);
-//            }
-//            mappedByteBuffer.put(bytes);
 //
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-
-    }
+//        //直接写到mappedbuffer版本
+//
+////        try {
+////            if (!mappedByteBufferMap.containsKey(bucket)) {
+////                MappedByteBuffer mappedByteBuffer = new RandomAccessFile(PATH + bucket, "rw").getChannel().map(FileChannel.MapMode.READ_WRITE, 0L, 1024 * 1024 * 40);
+////                mappedByteBufferMap.put(bucket, mappedByteBuffer);
+////            }
+////
+////            mappedByteBuffer = mappedByteBufferMap.get(bucket);
+////            byte[] bytes = MessageUtil.write(message);
+////            if ((mappedByteBuffer.capacity() - mappedByteBuffer.position()) < bytes.length) {
+////                long lastPosition = position.getOrDefault(bucket,0L);
+////                position.put(bucket, lastPosition + mappedByteBuffer.position());
+////                FileChannel fileChannel = new RandomAccessFile(PATH + bucket, "rw").getChannel();
+////                mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, lastPosition + mappedByteBuffer.position(), 1024 * 1024 * 40);
+////                mappedByteBufferMap.put(bucket, mappedByteBuffer);
+////            }
+////            mappedByteBuffer.put(bytes);
+////
+////        } catch (IOException e) {
+////            e.printStackTrace();
+////        }
+//
+//    }
 
 
 //    public synchronized boolean read(String bucket ,long position) {
@@ -367,152 +362,152 @@ public class MessageStore {
 //    }
 
 
-    public synchronized void flush(Map<String, ByteBuffer> resultData) {
-//
-////        long writeObjectTime = 0;
-////        long writeFileTime = 0;
-////        long writeToByteTime = 0;
-//
-//
-//        //对应直接缓存版本
-////        if (messNum.get() == 0) {
-////            return;
-////        }
+//    public synchronized void flush(Map<String, ByteBuffer> resultData) {
+////
+//////        long writeObjectTime = 0;
+//////        long writeFileTime = 0;
+//////        long writeToByteTime = 0;
+////
+////
+////        //对应直接缓存版本
+//////        if (messNum.get() == 0) {
+//////            return;
+//////        }
+////////        System.out.println("刷新到硬盘");
+////////        totalNum += messNum;
+////////        long start = System.currentTimeMillis();
+//////        try {
+//////                for (String key : resultMap.keySet()) {
+//////                    if (!randomAccessFileMap.containsKey(key)) {
+//////                        randomAccessFileMap.put(key, new RandomAccessFile(PATH + key, "rw"));
+//////                    }
+//////                    RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
+//////
+////////                    randomAccessFile.skipBytes((int)(long)(position.getOrDefault(key, 0L)));
+//////
+////////                    ByteBuffer byteBuffer = ByteBuffer.allocate(1024*1024*100);
+////////                    long writeObjectStart = System.currentTimeMillis();
+//////                    while (!resultMap.get(key).isEmpty()) {
+//////                        Message message = resultMap.get(key).poll();
+////////                        long writeToByteStart = System.nanoTime();
+//////                        byte[] bytes = MessageUtil.write(message);
+////////                        long writeToByteEnd = System.nanoTime();
+//////                        byteArrayOutputStream.write(bytes);
+//////                        message = null;
+////////                        writeToByteTime += (writeToByteStart - writeToByteEnd);
+//////                    }
+////////                    long writeObjectEnd = System.currentTimeMillis();
+//////
+//////                    randomAccessFile.write(byteArrayOutputStream.toByteArray());
+//////
+////////                    long writeFileEnd = System.currentTimeMillis();
+//////
+//////
+////////                    position.put(key, randomAccessFile.length());
+//////
+//////                    byteArrayOutputStream.reset();
+////////                localObjectOutputStream.close();
+////////                randomAccessFile.close();
+////////                 writeObjectTime += writeObjectEnd - writeObjectStart;
+////////                writeFileTime += writeFileEnd - writeObjectEnd;
+//////            }
+//////        } catch (IOException e) {
+//////            e.printStackTrace();
+//////        }
+//////        messNum.set(0);
+////
+////
+//////        long end = System.currentTimeMillis();
+//////        System.out.println("本次硬盘刷新时间：" + (end - start));
+//////        System.out.println("发送数目：" + totalNum);
+//////        System.out.println("WriteObjectTime ：" + (writeObjectTime));
+//////        System.out.println("WriteFileTime ：" + (writeFileTime));
+//////        System.out.println("writeToByteTime ：" + (TimeUnit.NANOSECONDS.toMillis(writeToByteTime)));
+////
+////
+////        // 对应缓存数据版本
 //////        System.out.println("刷新到硬盘");
-//////        totalNum += messNum;
 //////        long start = System.currentTimeMillis();
+////
+//////        messNum.set(0);
 ////        try {
-////                for (String key : resultMap.keySet()) {
-////                    if (!randomAccessFileMap.containsKey(key)) {
-////                        randomAccessFileMap.put(key, new RandomAccessFile(PATH + key, "rw"));
-////                    }
-////                    RandomAccessFile randomAccessFile = randomAccessFileMap.get(key);
+////            for (String bucket : resultData.keySet()) {
+////                if (!mappedByteBufferMap.containsKey(bucket)) {
+////                    MappedByteBuffer mappedByteBuffer = new RandomAccessFile(PATH + bucket, "rw").getChannel().map(FileChannel.MapMode.READ_WRITE, 0L, FILE_BLOCK);
+////                    mappedByteBufferMap.put(bucket, mappedByteBuffer);
+////                }
+////                mappedByteBuffer = mappedByteBufferMap.get(bucket);
+////                if ((mappedByteBuffer.capacity() - mappedByteBuffer.position()) < CACHE_SIZE) {
+////                    FileChannel fileChannel = new RandomAccessFile(PATH + bucket, "rw").getChannel();
+////                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, fileChannel.size(), FILE_BLOCK);
+////                    mappedByteBufferMap.put(bucket, mappedByteBuffer);
+////                }
 ////
-//////                    randomAccessFile.skipBytes((int)(long)(position.getOrDefault(key, 0L)));
-////
-//////                    ByteBuffer byteBuffer = ByteBuffer.allocate(1024*1024*100);
-//////                    long writeObjectStart = System.currentTimeMillis();
-////                    while (!resultMap.get(key).isEmpty()) {
-////                        Message message = resultMap.get(key).poll();
-//////                        long writeToByteStart = System.nanoTime();
-////                        byte[] bytes = MessageUtil.write(message);
-//////                        long writeToByteEnd = System.nanoTime();
-////                        byteArrayOutputStream.write(bytes);
-////                        message = null;
-//////                        writeToByteTime += (writeToByteStart - writeToByteEnd);
-////                    }
-//////                    long writeObjectEnd = System.currentTimeMillis();
-////
-////                    randomAccessFile.write(byteArrayOutputStream.toByteArray());
-////
-//////                    long writeFileEnd = System.currentTimeMillis();
-////
-////
-//////                    position.put(key, randomAccessFile.length());
-////
-////                    byteArrayOutputStream.reset();
-//////                localObjectOutputStream.close();
-//////                randomAccessFile.close();
-//////                 writeObjectTime += writeObjectEnd - writeObjectStart;
-//////                writeFileTime += writeFileEnd - writeObjectEnd;
+////                ByteArrayOutputStream byteArrayOutputStream = resultData.get(bucket);
+////                mappedByteBuffer.put(byteArrayOutputStream.toByteArray());
+////                byteArrayOutputStream.reset();
 ////            }
+////
 ////        } catch (IOException e) {
 ////            e.printStackTrace();
 ////        }
-////        messNum.set(0);
+////
+//////        long end = System.currentTimeMillis();
+//////        System.out.println("本次硬盘刷新时间：" + (end - start));
+////
+////
+////    }
 //
 //
-////        long end = System.currentTimeMillis();
-////        System.out.println("本次硬盘刷新时间：" + (end - start));
-////        System.out.println("发送数目：" + totalNum);
-////        System.out.println("WriteObjectTime ：" + (writeObjectTime));
-////        System.out.println("WriteFileTime ：" + (writeFileTime));
-////        System.out.println("writeToByteTime ：" + (TimeUnit.NANOSECONDS.toMillis(writeToByteTime)));
+////        // 对应缓存数据版本(压缩版)
+////        try {
+////            for (String bucket : resultData.keySet()) {
+////                if (!cacheMap.containsKey(bucket)) {
+////                    ByteBuffer byteBuffer = ByteBuffer.allocate(FILE_BLOCK);
+////                    cacheMap.put(bucket, byteBuffer);
+////                }
+////                ByteBuffer cache = cacheMap.get(bucket);
+////                if (FILE_BLOCK - cache.position() < CACHE_SIZE) {
+////                    executorService.execute(new WriteToFile(bucket, cache));
+////                    cache = ByteBuffer.allocate(FILE_BLOCK);
+//////                    writeToFile(bucket, cache);
+////                }
+////                ByteBuffer byteBuffer = resultData.get(bucket);
+////                byteBuffer.flip();
+////                while(byteBuffer.hasRemaining()){
+////                    cache.put(byteBuffer.get());
+////                }
+////                byteBuffer.clear();
+////            }
 //
-//
-//        // 对应缓存数据版本
-////        System.out.println("刷新到硬盘");
-////        long start = System.currentTimeMillis();
-//
-////        messNum.set(0);
-//        try {
-//            for (String bucket : resultData.keySet()) {
-//                if (!mappedByteBufferMap.containsKey(bucket)) {
-//                    MappedByteBuffer mappedByteBuffer = new RandomAccessFile(PATH + bucket, "rw").getChannel().map(FileChannel.MapMode.READ_WRITE, 0L, FILE_BLOCK);
-//                    mappedByteBufferMap.put(bucket, mappedByteBuffer);
-//                }
-//                mappedByteBuffer = mappedByteBufferMap.get(bucket);
-//                if ((mappedByteBuffer.capacity() - mappedByteBuffer.position()) < CACHE_SIZE) {
-//                    FileChannel fileChannel = new RandomAccessFile(PATH + bucket, "rw").getChannel();
-//                    mappedByteBuffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, fileChannel.size(), FILE_BLOCK);
-//                    mappedByteBufferMap.put(bucket, mappedByteBuffer);
-//                }
-//
-//                ByteArrayOutputStream byteArrayOutputStream = resultData.get(bucket);
-//                mappedByteBuffer.put(byteArrayOutputStream.toByteArray());
-//                byteArrayOutputStream.reset();
-//            }
-//
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//
-////        long end = System.currentTimeMillis();
-////        System.out.println("本次硬盘刷新时间：" + (end - start));
-//
+////        } catch (IOException e) {
+////            e.printStackTrace();
+////        }
 //
 //    }
 
-
-//        // 对应缓存数据版本(压缩版)
-//        try {
-//            for (String bucket : resultData.keySet()) {
-//                if (!cacheMap.containsKey(bucket)) {
-//                    ByteBuffer byteBuffer = ByteBuffer.allocate(FILE_BLOCK);
-//                    cacheMap.put(bucket, byteBuffer);
-//                }
-//                ByteBuffer cache = cacheMap.get(bucket);
-//                if (FILE_BLOCK - cache.position() < CACHE_SIZE) {
-//                    executorService.execute(new WriteToFile(bucket, cache));
-//                    cache = ByteBuffer.allocate(FILE_BLOCK);
-////                    writeToFile(bucket, cache);
-//                }
-//                ByteBuffer byteBuffer = resultData.get(bucket);
-//                byteBuffer.flip();
-//                while(byteBuffer.hasRemaining()){
-//                    cache.put(byteBuffer.get());
-//                }
-//                byteBuffer.clear();
-//            }
-
-//        } catch (IOException e) {
-//            e.printStackTrace();
+//    private void writeToFile(String bucket, ByteBuffer cache) throws IOException {
+//        if (!randomAccessFileMap.containsKey(bucket)) {
+//            randomAccessFileMap.put(bucket, new RandomAccessFile(PATH + bucket, "rw"));
+//            deflatePosition.put(bucket, new LinkedList<>());
 //        }
-
-    }
-
-    private void writeToFile(String bucket, ByteBuffer cache) throws IOException {
-        if (!randomAccessFileMap.containsKey(bucket)) {
-            randomAccessFileMap.put(bucket, new RandomAccessFile(PATH + bucket, "rw"));
-            deflatePosition.put(bucket, new LinkedList<>());
-        }
-        RandomAccessFile randomAccessFile = randomAccessFileMap.get(bucket);
-//        MappedByteBuffer mappedByteBuffer = randomAccessFile.getChannel().map(FileChannel.MapMode.READ_WRITE, randomAccessFile.length(), DEFLATE_BLOCK);
-        byte[] deflateBuf = new byte[FILE_BLOCK];
-        Deflater deflater = new Deflater(1);
-        deflater.setInput(cache.array(), 0, cache.position());
-        deflater.finish();
-        int deflateSize = deflater.deflate(deflateBuf);
-        deflater.end();
-//        deflater.reset();
-        byte[] data = new byte[deflateSize];
-        System.arraycopy(deflateBuf,0,data,0,deflateSize);
-        randomAccessFile.write(data);
-        deflatePosition.get(bucket).add(deflateSize);
-//        mappedByteBuffer.put(deflateBuf);
-//        randomAccessFile.close();
-        cache.clear();
-    }
+//        RandomAccessFile randomAccessFile = randomAccessFileMap.get(bucket);
+////        MappedByteBuffer mappedByteBuffer = randomAccessFile.getChannel().map(FileChannel.MapMode.READ_WRITE, randomAccessFile.length(), DEFLATE_BLOCK);
+//        byte[] deflateBuf = new byte[FILE_BLOCK];
+//        Deflater deflater = new Deflater(1);
+//        deflater.setInput(cache.array(), 0, cache.position());
+//        deflater.finish();
+//        int deflateSize = deflater.deflate(deflateBuf);
+//        deflater.end();
+////        deflater.reset();
+//        byte[] data = new byte[deflateSize];
+//        System.arraycopy(deflateBuf,0,data,0,deflateSize);
+//        randomAccessFile.write(data);
+//        deflatePosition.get(bucket).add(deflateSize);
+////        mappedByteBuffer.put(deflateBuf);
+////        randomAccessFile.close();
+//        cache.clear();
+//    }
 
     private void end() {
 //        for (Map.Entry<String, ByteBuffer> entry : cacheMap.entrySet()) {
@@ -555,48 +550,48 @@ public class MessageStore {
 
 
     // 对应缓存数据版本(压缩版) 一次接受一个bucket
-    public synchronized void flush(String bucket, ByteBuffer byteBuffer) {
-        if (!cacheMap.containsKey(bucket)) {
-            ByteBuffer cache = ByteBuffer.allocate(FILE_BLOCK);
-            cacheMap.put(bucket, cache);
-        }
-        ByteBuffer cache = cacheMap.get(bucket);
-        if (FILE_BLOCK - cache.position() < CACHE_SIZE) {
-//            executorService.execute(new WriteToFile(bucket, cache));
-//            cache = ByteBuffer.allocate(FILE_BLOCK);
-                try {
-                    writeToFile(bucket, cache);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-        }
-        byteBuffer.flip();
-        while (byteBuffer.hasRemaining()) {
-            cache.put(byteBuffer.get());
-        }
-        byteBuffer.clear();
+//    public synchronized void flush(String bucket, ByteBuffer byteBuffer) {
+//        if (!cacheMap.containsKey(bucket)) {
+//            ByteBuffer cache = ByteBuffer.allocate(FILE_BLOCK);
+//            cacheMap.put(bucket, cache);
+//        }
+//        ByteBuffer cache = cacheMap.get(bucket);
+//        if (FILE_BLOCK - cache.position() < CACHE_SIZE) {
+////            executorService.execute(new WriteToFile(bucket, cache));
+////            cache = ByteBuffer.allocate(FILE_BLOCK);
+//                try {
+//                    writeToFile(bucket, cache);
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
+//        }
+//        byteBuffer.flip();
+//        while (byteBuffer.hasRemaining()) {
+//            cache.put(byteBuffer.get());
+//        }
+//        byteBuffer.clear();
+//
+//    }
 
-    }
-
-    private class WriteToFile implements Runnable {
-        private String bucket;
-        private ByteBuffer cache;
-
-        public WriteToFile(String bucket, ByteBuffer cache) {
-            this.bucket = bucket;
-            this.cache = cache;
-        }
-
-        @Override
-        public void run() {
-            Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
-            try {
-                writeToFile(bucket, cache);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
+//    private class WriteToFile implements Runnable {
+//        private String bucket;
+//        private ByteBuffer cache;
+//
+//        public WriteToFile(String bucket, ByteBuffer cache) {
+//            this.bucket = bucket;
+//            this.cache = cache;
+//        }
+//
+//        @Override
+//        public void run() {
+//            Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
+//            try {
+//                writeToFile(bucket, cache);
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+//        }
+//    }
 }
 
 
