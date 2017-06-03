@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -45,7 +47,7 @@ public class MessageStore {
     private Map<String, RandomAccessFile> randomAccessFileMap = new ConcurrentHashMap<>(100);
     private Map<String, ByteBuffer> cacheMap = new ConcurrentHashMap<>(100);
     private Deflater deflater = new Deflater(1);
-    private Map<String, ConcurrentLinkedQueue<Integer>> deflatePosition = new ConcurrentHashMap<>(100);
+    private Map<String, LinkedList<Integer>> deflatePosition = new HashMap<>(100);
 
 //    private ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
@@ -492,7 +494,7 @@ public class MessageStore {
     private void writeToFile(String bucket, ByteBuffer cache) throws IOException {
         if (!randomAccessFileMap.containsKey(bucket)) {
             randomAccessFileMap.put(bucket, new RandomAccessFile(PATH + bucket, "rw"));
-            deflatePosition.put(bucket, new ConcurrentLinkedQueue<>());
+            deflatePosition.put(bucket, new LinkedList<>());
         }
         RandomAccessFile randomAccessFile = randomAccessFileMap.get(bucket);
 //        MappedByteBuffer mappedByteBuffer = randomAccessFile.getChannel().map(FileChannel.MapMode.READ_WRITE, randomAccessFile.length(), DEFLATE_BLOCK);
@@ -533,15 +535,16 @@ public class MessageStore {
         }
     }
 
+    //对应分散压缩
     public void writeToFile(String bucket, byte[] deflateBuf, int size) {
         synchronized (bucket.intern()) {
             try {
                 if (!randomAccessFileMap.containsKey(bucket)) {
                     randomAccessFileMap.put(bucket, new RandomAccessFile(PATH + bucket, "rw"));
-                    deflatePosition.put(bucket, new ConcurrentLinkedQueue<>());
+                    deflatePosition.put(bucket, new LinkedList<>());
                 }
                 RandomAccessFile randomAccessFile = randomAccessFileMap.get(bucket);
-                ConcurrentLinkedQueue<Integer> list = deflatePosition.get(bucket);
+                LinkedList<Integer> list = deflatePosition.get(bucket);
                 randomAccessFile.write(deflateBuf, 0, size);
                 list.add(size);
             } catch (IOException e) {

@@ -11,7 +11,6 @@ import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.*;
-import java.util.concurrent.*;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
@@ -48,9 +47,9 @@ public class DefaultPullConsumer implements PullConsumer {
 
     private MessageStore messageStore;
 
-    private Map<String, ConcurrentLinkedQueue<Integer>> deflatePosition;
-    private ExecutorService executorService = Executors.newSingleThreadExecutor();
-    private BlockingQueue<byte[]> cacheQueue = new LinkedBlockingQueue<>(2);
+    private Map<String, LinkedList<Integer>> deflatePosition;
+//    private ExecutorService executorService = Executors.newSingleThreadExecutor();
+//    private BlockingQueue<byte[]> cacheQueue = new LinkedBlockingQueue<>(2);
 //    private BlockingQueue<byte[]> messQueue = new LinkedBlockingQueue<>(MESS_CACHE);
 
 //    private ArrayList<Message> messList;
@@ -58,7 +57,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //    private String bucket;
 
     private RandomAccessFile randomAccessFile;
-    private ConcurrentLinkedQueue<Integer> positionList;
+    private LinkedList<Integer> positionList;
 //    private Thread thisThread;
 
     private int n;
@@ -619,7 +618,7 @@ public class DefaultPullConsumer implements PullConsumer {
         try {
             FileInputStream fileInputStream = new FileInputStream(PATH + "index");
             ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
-            deflatePosition = (Map<String, ConcurrentLinkedQueue<Integer>>) objectInputStream.readObject();
+            deflatePosition = (Map<String, LinkedList<Integer>>) objectInputStream.readObject();
             objectInputStream.close();
             fileInputStream.close();
         } catch (IOException | ClassNotFoundException e) {

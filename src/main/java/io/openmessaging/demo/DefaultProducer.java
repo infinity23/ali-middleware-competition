@@ -2,7 +2,6 @@ package io.openmessaging.demo;
 
 import io.openmessaging.*;
 
-import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
@@ -34,9 +33,9 @@ public class DefaultProducer implements Producer {
 //
 //    private Map<String, MappedByteBuffer> mappedByteBufferMap = new HashMap<>();
 
-    private Map<String, ByteBuffer> resultData = new HashMap<>(100);
-
-    private int messNum;
+//    private Map<String, ByteBuffer> resultData = new HashMap<>(100);
+//
+//    private int messNum;
 
 
     private Deflater compresser = new Deflater(Deflater.BEST_SPEED);
@@ -152,7 +151,7 @@ public class DefaultProducer implements Producer {
 
         //缓存数据再交ms(压缩版)
         if (!cacheMap.containsKey(bucket)) {
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(CACHE_SIZE);
+//            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(CACHE_SIZE);
             ByteBuffer byteBuffer = ByteBuffer.allocate(CACHE_SIZE);
             cacheMap.put(bucket, byteBuffer);
         }
@@ -207,7 +206,7 @@ public class DefaultProducer implements Producer {
     //用于被kill之前刷新到硬盘
     @Override
     public void flush() {
-        System.out.println("最后flush");
+//        System.out.println("最后flush");
 //        集中压缩版
 //        messageStore.flush(resultData);
 //        for(Map.Entry<String, ByteBuffer> entry : resultData.entrySet()){
