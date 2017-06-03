@@ -15,6 +15,9 @@ import java.util.concurrent.*;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
+import static io.openmessaging.demo.Constant.CACHE_SIZE;
+
+
 public class DefaultPullConsumer implements PullConsumer {
     //    private static final int FILE_BLOCK = 1024 * 1024 * 40;
     private static final int FILE_BLOCK = 1024 * 1024 * 20;
@@ -73,6 +76,7 @@ public class DefaultPullConsumer implements PullConsumer {
 //    private boolean done;
 //    private Map<String, Long> positionMap = new HashMap<>(100);
     private long mPosition;
+    private byte[] fileCache;
 //
 //    public void setCyclicBarrier(CyclicBarrier cyclicBarrier) {
 //        this.cyclicBarrier = cyclicBarrier;
@@ -402,13 +406,14 @@ public class DefaultPullConsumer implements PullConsumer {
             if (positionList != null && !positionList.isEmpty()) {
                 int position = positionList.poll();
                 cache = new byte[position];
+                System.arraycopy(fileCache,cached,cache,0,position);
                 randomAccessFile.read(cache);
-                byte[] out = new byte[FILE_BLOCK];
+                byte[] out = new byte[CACHE_SIZE];
                 uncompressor.setInput(cache);
                 uncompressor.inflate(out);
                 uncompressor.reset();
                 cache = out;
-                cached += DEFLATE_BLOCK;
+                cached += position;
                 return true;
             }
 
@@ -417,16 +422,18 @@ public class DefaultPullConsumer implements PullConsumer {
                 index = 0;
                 String bucket = it.next();
                 randomAccessFile = new RandomAccessFile(PATH + bucket, "r");
+                fileCache = new byte[(int) randomAccessFile.length()];
+                randomAccessFile.read(fileCache);
                 positionList = deflatePosition.get(bucket);
                 int position = positionList.poll();
                 cache = new byte[position];
-                randomAccessFile.read(cache);
-                byte[] out = new byte[FILE_BLOCK];
+                System.arraycopy(fileCache,cached,cache,0,position);
+                byte[] out = new byte[CACHE_SIZE];
                 uncompressor.setInput(cache);
                 uncompressor.inflate(out);
                 uncompressor.reset();
                 cache = out;
-                cached += DEFLATE_BLOCK;
+                cached += position;
 
                 return true;
             }

@@ -12,13 +12,14 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.Deflater;
 
+import static io.openmessaging.demo.Constant.CACHE_SIZE;
+
 public class MessageStore {
 
     private static final long MAX_FREE_MEMORY = 1024 * 1024 * 1024L;
     //    private static final long MAX_MESS_NUM = 1024 * 1024 * 10;
     private static final long MAX_MESS_NUM = 50000;
     private static final long SLEEP_TIME = 10;
-    public static final int CACHE_SIZE = 1024 * 512;
     //    public static final int FILE_BLOCK = 1024 * 1024 * 40;
     public static final int FILE_BLOCK = 1024 * 1024 * 20;
     public static final int DEFLATE_BLOCK = FILE_BLOCK / 5;
@@ -512,14 +513,14 @@ public class MessageStore {
     }
 
     private void end() {
-        for (Map.Entry<String, ByteBuffer> entry : cacheMap.entrySet()) {
-//            executorService.execute(new WriteToFile(entry.getKey(), entry.getValue()));
-            try {
-                    writeToFile(entry.getKey(), entry.getValue());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+//        for (Map.Entry<String, ByteBuffer> entry : cacheMap.entrySet()) {
+////            executorService.execute(new WriteToFile(entry.getKey(), entry.getValue()));
+//            try {
+//                    writeToFile(entry.getKey(), entry.getValue());
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+//        }
 
         try {
             FileOutputStream fileOutputStream = new FileOutputStream(PATH + "index");
@@ -532,18 +533,20 @@ public class MessageStore {
         }
     }
 
-    private void writeToFile(String bucket, byte[] deflateBuf, int size) {
-        try {
-            if (!randomAccessFileMap.containsKey(bucket)) {
-                randomAccessFileMap.put(bucket, new RandomAccessFile(PATH + bucket, "rw"));
-                deflatePosition.put(bucket, new ConcurrentLinkedQueue<>());
+    public void writeToFile(String bucket, byte[] deflateBuf, int size) {
+        synchronized (bucket.intern()) {
+            try {
+                if (!randomAccessFileMap.containsKey(bucket)) {
+                    randomAccessFileMap.put(bucket, new RandomAccessFile(PATH + bucket, "rw"));
+                    deflatePosition.put(bucket, new ConcurrentLinkedQueue<>());
+                }
+                RandomAccessFile randomAccessFile = randomAccessFileMap.get(bucket);
+                ConcurrentLinkedQueue<Integer> list = deflatePosition.get(bucket);
+                randomAccessFile.write(deflateBuf, 0, size);
+                list.add(size);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            RandomAccessFile randomAccessFile = randomAccessFileMap.get(bucket);
-            ConcurrentLinkedQueue<Integer> list = deflatePosition.get(bucket);
-            randomAccessFile.write(deflateBuf, 0, size);
-            list.add(size);
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 

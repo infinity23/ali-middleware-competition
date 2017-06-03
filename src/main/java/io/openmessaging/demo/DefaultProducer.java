@@ -9,13 +9,13 @@ import java.util.Map;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.zip.Deflater;
-import java.util.zip.DeflaterOutputStream;
+
+import static io.openmessaging.demo.Constant.CACHE_SIZE;
 
 public class DefaultProducer implements Producer {
     //    private static Random random = new Random(System.currentTimeMillis());
     public static final int MESS_MAX = 10000;
     public static final int BUCKET_SIZE = 1024 * 1024 * 100;
-    private static final int CACHE_SIZE = 1024 * 512;
     //    private static final int CACHE_SIZE = 1024 * 1024 * 2;
     //    private static final int CACHE_SIZE = 1024 * 512 * (random.nextInt(5) + 1);
     private static int level = 1;
@@ -40,8 +40,7 @@ public class DefaultProducer implements Producer {
 
 
     private Deflater compresser = new Deflater(Deflater.BEST_SPEED);
-    private Map<String, DeflaterOutputStream> deflaterOuputStreamMap = new HashMap<>(100);
-    private Map<String, ByteArrayOutputStream> cacheMap = new HashMap<>(100);
+    private Map<String, ByteBuffer> cacheMap = new HashMap<>(100);
     private byte[] deflaterBuf = new byte[CACHE_SIZE];
 
     public DefaultProducer(KeyValue properties) {
@@ -135,7 +134,7 @@ public class DefaultProducer implements Producer {
 
         //交到messagestore统一处理
 //        messageStore.putMessage(bucket, message);
-        messageStore.putMessage(bucket, MessageUtil.write(message));
+//        messageStore.putMessage(bucket, MessageUtil.write(message));
 
 
         //缓存数据再交ms
@@ -152,24 +151,22 @@ public class DefaultProducer implements Producer {
 
 
         //缓存数据再交ms(压缩版)
-//        if (!cacheMap.containsKey(bucket)) {
-//            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(CACHE_SIZE);
-//            cacheMap.put(bucket, byteArrayOutputStream);
-//        }
-//        ByteArrayOutputStream byteArrayOutputStream = cacheMap.get(bucket);
-//        byte[] bytes = MessageUtil.write(message);
-//        if (CACHE_SIZE - byteArrayOutputStream.size() < bytes.length) {
-//            compresser.setInput(byteArrayOutputStream.toByteArray());
-//            compresser.finish();
-//            int size = compresser.deflate(deflaterBuf);
-//            compresser.reset();
-//            messageStore.writeToFile(bucket,deflaterBuf,size);
-//        }
-//        try {
-//            byteArrayOutputStream.write(bytes);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
+        if (!cacheMap.containsKey(bucket)) {
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(CACHE_SIZE);
+            ByteBuffer byteBuffer = ByteBuffer.allocate(CACHE_SIZE);
+            cacheMap.put(bucket, byteBuffer);
+        }
+        ByteBuffer byteBuffer = cacheMap.get(bucket);
+        byte[] bytes = MessageUtil.write(message);
+        if (CACHE_SIZE - byteBuffer.position() < bytes.length) {
+            compresser.setInput(byteBuffer.array(),0,byteBuffer.position());
+            compresser.finish();
+            int size = compresser.deflate(deflaterBuf);
+            compresser.reset();
+            messageStore.writeToFile(bucket,deflaterBuf,size);
+            byteBuffer.clear();
+        }
+            byteBuffer.put(bytes);
     }
 
     @Override
@@ -216,22 +213,28 @@ public class DefaultProducer implements Producer {
 //        for(Map.Entry<String, ByteBuffer> entry : resultData.entrySet()){
 //            messageStore.flush(entry.getKey(), entry.getValue());
 //        }
+//        CyclicBarrier cyclicBarrier = messageStore.getCyclicBarrier();
+//        try {
+//            cyclicBarrier.await();
+//        } catch (InterruptedException | BrokenBarrierException e) {
+//            e.printStackTrace();
+//        }
+
+        //分散压缩版
+        for (Map.Entry<String, ByteBuffer> entry : cacheMap.entrySet()) {
+            ByteBuffer byteBuffer = entry.getValue();
+            compresser.setInput(byteBuffer.array(),0,byteBuffer.position());
+            compresser.finish();
+            int size = compresser.deflate(deflaterBuf);
+            compresser.reset();
+            messageStore.writeToFile(entry.getKey(), deflaterBuf, size);
+        }
         CyclicBarrier cyclicBarrier = messageStore.getCyclicBarrier();
         try {
             cyclicBarrier.await();
         } catch (InterruptedException | BrokenBarrierException e) {
             e.printStackTrace();
         }
-
-        //分散压缩版
-//        for (Map.Entry<String, ByteArrayOutputStream> entry : cacheMap.entrySet()) {
-//            byte[] bytes = entry.getValue().toByteArray();
-//            compresser.setInput(bytes);
-//            compresser.finish();
-//            int size = compresser.deflate(deflaterBuf);
-//            compresser.reset();
-//            messageStore.writeToFile(entry.getKey(), deflaterBuf, size);
-//        }
 
 
 //        messageStore.flush(cacheMap,cacheSizeMap);
