@@ -35,7 +35,7 @@ public class MessageStore {
     //    private volatile long totalNum;
 //    private volatile boolean flushing;
 //
-    private ExecutorService executorService = Executors.newSingleThreadExecutor();
+//    private ExecutorService executorService = Executors.newSingleThreadExecutor();
 
 
 //    private Map<String, ObjectOutputStream> objectOutputStreamMap = new ConcurrentHashMap<>(100);
@@ -46,7 +46,7 @@ public class MessageStore {
 
     private Map<String, RandomAccessFile> randomAccessFileMap = new ConcurrentHashMap<>(100);
     private Map<String, ByteBuffer> cacheMap = new ConcurrentHashMap<>(100);
-    private Deflater deflater = new Deflater(1);
+//    private Deflater deflater = new Deflater(1);
     private Map<String, LinkedList<Integer>> deflatePosition = new HashMap<>(100);
 
 //    private ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
@@ -62,7 +62,7 @@ public class MessageStore {
 
     private static AtomicInteger threadNum = new AtomicInteger(0);
     private static CyclicBarrier cyclicBarrier;
-    private boolean hasFlush;
+//    private boolean hasFlush;
     //    private boolean done;
 //    private ArrayList<byte[]> bytesList = new ArrayList<>();
 

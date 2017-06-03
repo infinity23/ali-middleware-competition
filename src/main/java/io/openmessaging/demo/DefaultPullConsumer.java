@@ -119,45 +119,45 @@ public class DefaultPullConsumer implements PullConsumer {
 //        return null;
 
         //对应RAF分块线程分离
-        while(position < thisCache.length && thisCache[position] != 0){
-//            //用于非一块大小
-//                if(position%FILE_BLOCK == 0){
-//                    lastPositin = position - 1;
-//                }
-            if(thisCache[position] == 29){
-                byte[] bytes = new byte[position - lastPositin];
-                System.arraycopy(thisCache,lastPositin + 1,bytes,0,position - lastPositin);
-                lastPositin = position++;
-                return MessageUtil.read(bytes);
-            }
-            position ++;
-        }
-
-        try {
-            if(!done){
-                thisCache = cacheQueue.take();
-            }else {
-                thisCache = cacheQueue.poll();
-            }
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        if(thisCache != null){
-            position = 0;
-            lastPositin = -1;
-            while(position < thisCache.length){
-                if(thisCache[position] == 29){
-                    byte[] bytes = new byte[position - lastPositin];
-                    System.arraycopy(thisCache,lastPositin + 1,bytes,0,position - lastPositin);
-                    lastPositin = position++;
-                    return MessageUtil.read(bytes);
-            }
-            position++;
-            }
-        }
-
-        return null;
+//        while(position < thisCache.length && thisCache[position] != 0){
+////            //用于非一块大小
+////                if(position%FILE_BLOCK == 0){
+////                    lastPositin = position - 1;
+////                }
+//            if(thisCache[position] == 29){
+//                byte[] bytes = new byte[position - lastPositin];
+//                System.arraycopy(thisCache,lastPositin + 1,bytes,0,position - lastPositin);
+//                lastPositin = position++;
+//                return MessageUtil.read(bytes);
+//            }
+//            position ++;
+//        }
+//
+//        try {
+//            if(!done){
+//                thisCache = cacheQueue.take();
+//            }else {
+//                thisCache = cacheQueue.poll();
+//            }
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+//
+//        if(thisCache != null){
+//            position = 0;
+//            lastPositin = -1;
+//            while(position < thisCache.length){
+//                if(thisCache[position] == 29){
+//                    byte[] bytes = new byte[position - lastPositin];
+//                    System.arraycopy(thisCache,lastPositin + 1,bytes,0,position - lastPositin);
+//                    lastPositin = position++;
+//                    return MessageUtil.read(bytes);
+//            }
+//            position++;
+//            }
+//        }
+//
+//        return null;
 
 
         //对应分段mmp
@@ -243,35 +243,35 @@ public class DefaultPullConsumer implements PullConsumer {
 
         //缓存版,从byte[]读取
 
-//        while (position < cache.length && cache[position] != 0) {
-//            //用于非一块大小
-////                if(position%FILE_BLOCK == 0){
-////                    lastPositin = position - 1;
-////                }
-//            if (cache[position] == 29) {
-//                byte[] bytes = new byte[position - lastPositin];
-//                System.arraycopy(cache, lastPositin + 1, bytes, 0, position - lastPositin);
-//                lastPositin = position++;
-//                return MessageUtil.read(bytes);
-//            }
-//            position++;
-//        }
-//
-//        if (read()) {
-//            position = 0;
-//            lastPositin = -1;
-//            while (position < cache.length) {
-//                if (cache[position] == 29) {
-//                    byte[] bytes = new byte[position - lastPositin];
-//                    System.arraycopy(cache, lastPositin + 1, bytes, 0, position - lastPositin);
-//                    lastPositin = position++;
-//                    return MessageUtil.read(bytes);
+        while (position < cache.length && cache[position] != 0) {
+            //用于非一块大小
+//                if(position%FILE_BLOCK == 0){
+//                    lastPositin = position - 1;
 //                }
-//                position++;
-//            }
-//        }
-//
-//        return null;
+            if (cache[position] == 29) {
+                byte[] bytes = new byte[position - lastPositin];
+                System.arraycopy(cache, lastPositin + 1, bytes, 0, position - lastPositin);
+                lastPositin = position++;
+                return MessageUtil.read(bytes);
+            }
+            position++;
+        }
+
+        if (read()) {
+            position = 0;
+            lastPositin = -1;
+            while (position < cache.length) {
+                if (cache[position] == 29) {
+                    byte[] bytes = new byte[position - lastPositin];
+                    System.arraycopy(cache, lastPositin + 1, bytes, 0, position - lastPositin);
+                    lastPositin = position++;
+                    return MessageUtil.read(bytes);
+                }
+                position++;
+            }
+        }
+
+        return null;
 
 
 //      mmp每次读一个
@@ -634,26 +634,26 @@ public class DefaultPullConsumer implements PullConsumer {
 //            e.printStackTrace();
 //        }
 
-//        read();
+        read();
 
 
 //        对应线程分离RAF
-        executorService.execute(() -> {
-            try {
-                while(read()) {
-                    cacheQueue.put(cache);
-                }
-                done = true;
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        });
-
-        try {
-            thisCache = cacheQueue.take();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+//        executorService.execute(() -> {
+//            try {
+//                while(read()) {
+//                    cacheQueue.put(cache);
+//                }
+//                done = true;
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+//        });
+//
+//        try {
+//            thisCache = cacheQueue.take();
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
 
 
         //对应MMP线程分离
