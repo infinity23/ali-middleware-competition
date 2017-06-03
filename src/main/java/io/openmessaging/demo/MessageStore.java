@@ -537,7 +537,7 @@ public class MessageStore {
 
     //对应分散压缩
     public void writeToFile(String bucket, byte[] deflateBuf, int size) {
-//        synchronized (bucket.intern()) {
+        synchronized (bucket.intern()) {
             try {
                 if (!randomAccessFileMap.containsKey(bucket)) {
                     randomAccessFileMap.put(bucket, new RandomAccessFile(PATH + bucket, "rw"));
@@ -550,7 +550,7 @@ public class MessageStore {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-//        }
+        }
     }
 
 

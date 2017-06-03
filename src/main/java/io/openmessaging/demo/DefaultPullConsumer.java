@@ -408,11 +408,8 @@ public class DefaultPullConsumer implements PullConsumer {
         try {
             if (positionList != null && !positionList.isEmpty()) {
                 int position = positionList.poll();
-                cache = new byte[position];
-                System.arraycopy(fileCache,cached,cache,0,position);
-                randomAccessFile.read(cache);
                 byte[] out = new byte[CACHE_SIZE];
-                uncompressor.setInput(cache);
+                uncompressor.setInput(fileCache,cached,position);
                 uncompressor.inflate(out);
                 uncompressor.reset();
                 cache = out;
@@ -429,10 +426,8 @@ public class DefaultPullConsumer implements PullConsumer {
                 randomAccessFile.read(fileCache);
                 positionList = deflatePosition.get(bucket);
                 int position = positionList.poll();
-                cache = new byte[position];
-                System.arraycopy(fileCache,cached,cache,0,position);
                 byte[] out = new byte[CACHE_SIZE];
-                uncompressor.setInput(cache);
+                uncompressor.setInput(fileCache,cached,position);
                 uncompressor.inflate(out);
                 uncompressor.reset();
                 cache = out;

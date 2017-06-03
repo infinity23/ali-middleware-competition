@@ -5,8 +5,7 @@ import io.openmessaging.*;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.BrokenBarrierException;
-import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.*;
 import java.util.zip.Deflater;
 
 import static io.openmessaging.demo.Constant.CACHE_SIZE;
@@ -41,6 +40,10 @@ public class DefaultProducer implements Producer {
     private Deflater compresser = new Deflater(Deflater.BEST_SPEED);
     private Map<String, ByteBuffer> cacheMap = new HashMap<>(100);
     private byte[] deflaterBuf = new byte[CACHE_SIZE];
+//    private ExecutorService executorService = Executors.newCachedThreadPool();
+//    private BlockingQueue<DeflateAndWrite> threadQueue = new LinkedBlockingQueue<>(2);
+//    private Thread dispatureThread;
+
 
     public DefaultProducer(KeyValue properties) {
         this.properties = properties;
@@ -58,6 +61,22 @@ public class DefaultProducer implements Producer {
 //            flush();
 //        });
 
+
+//        executorService.execute(new Runnable() {
+//            @Override
+//            public void run() {
+//                dispatureThread = Thread.currentThread();
+//                Thread.currentThread().setPriority(6);
+//                try {
+//                    while (true) {
+//                        DeflateAndWrite deflateAndWrite = threadQueue.take();
+//                        deflateAndWrite.run();
+//                    }
+//                } catch (InterruptedException e) {
+//
+//                }
+//            }
+//        });
     }
 
 
@@ -158,15 +177,44 @@ public class DefaultProducer implements Producer {
         ByteBuffer byteBuffer = cacheMap.get(bucket);
         byte[] bytes = MessageUtil.write(message);
         if (CACHE_SIZE - byteBuffer.position() < bytes.length) {
+//            try {
+//                threadQueue.put(new DeflateAndWrite(byteBuffer,bucket));
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+//            byteBuffer = ByteBuffer.allocate(CACHE_SIZE);
+
             compresser.setInput(byteBuffer.array(),0,byteBuffer.position());
             compresser.finish();
             int size = compresser.deflate(deflaterBuf);
             compresser.reset();
             messageStore.writeToFile(bucket,deflaterBuf,size);
             byteBuffer.clear();
+
         }
             byteBuffer.put(bytes);
     }
+
+//    private class DeflateAndWrite implements Runnable{
+////        Thread thread = Thread.currentThread();
+//        private ByteBuffer finalByteBuffer;
+//        private String bucket;
+//
+//        public DeflateAndWrite(ByteBuffer finalByteBuffer, String bucket) {
+//            this.finalByteBuffer = finalByteBuffer;
+//            this.bucket = bucket;
+//        }
+//
+//        @Override
+//        public void run() {
+////            thread.setPriority(Thread.MAX_PRIORITY);
+//            compresser.setInput(finalByteBuffer.array(),0, finalByteBuffer.position());
+//            compresser.finish();
+//            int size = compresser.deflate(deflaterBuf);
+//            compresser.reset();
+//            messageStore.writeToFile(bucket,deflaterBuf,size);
+//        }
+//    }
 
     @Override
     public void send(Message message, KeyValue properties) {
@@ -220,6 +268,9 @@ public class DefaultProducer implements Producer {
 //        }
 
         //分散压缩版
+
+//        dispatureThread.interrupt();
+
         for (Map.Entry<String, ByteBuffer> entry : cacheMap.entrySet()) {
             ByteBuffer byteBuffer = entry.getValue();
             compresser.setInput(byteBuffer.array(),0,byteBuffer.position());
